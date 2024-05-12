@@ -1,5 +1,5 @@
 from csv import reader
-from quiz_app.models import User
+from quiz_app.models import User, Question
 
 def load_questions(file_path, verbose: bool = True) -> dict:
     '''
