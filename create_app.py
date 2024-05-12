@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask 
 from quiz_app.routes import main
 from quiz_app.extentions import db
 from flask_login import LoginManager

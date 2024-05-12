@@ -6,7 +6,7 @@ from flask import (
     url_for,
     request
 )
-from . import models
+from .models import User, Question, QuestionSet, Result
 from .extentions import db
 from flask_login import (
     logout_user,
@@ -37,7 +37,7 @@ def login():
         return redirect(url_for("main.index"))
     if request.method == "POST":
         data = request.form.to_dict()
-        user = models.User.query.filter_by(
+        user = User.query.filter_by(
             name=data["name"],
             is_admin=True if "is_admin" in data.keys() else False
         ).first()
@@ -67,10 +67,10 @@ def register():
         data = request.form.to_dict()
         name = data["name"]
         password = data["password"]
-        if models.User.query.filter_by(name=name).first() is not None:
+        if User.query.filter_by(name=name).first() is not None:
             flash("user with this username already exists", "info")
             return redirect(url_for("main.register"))
-        user = models.User(
+        user = User(
             name=name,
             is_admin=False
         )
@@ -88,7 +88,7 @@ def add_questions():
     if request.method == "POST":
         data = request.form.to_dict()
         for i in range(1, ADD_QUESTIONS+1):
-            question = models.Question(
+            question = Question(
                 question=data[f"q{i}"],
                 option1=data[f"q{i}o1"],
                 option2=data[f"q{i}o2"],
@@ -104,7 +104,7 @@ def add_questions():
     return render(
         "add_questions.html",
         questions=ADD_QUESTIONS,
-        show=True if models.Question.query.filter_by(creator_id=current_user.id).first() is None else False
+        show=True if Question.query.filter_by(creator_id=current_user.id).first() is None else False
     )
 
 
@@ -115,11 +115,11 @@ def quiz():
         data = request.form.to_dict()
         qset = current_user.question_set
         total_questions = len(
-            models.Question.query.filter_by(
+            Question.query.filter_by(
                 question_set_id = qset
             ).all()
         )
-        result = models.Result(
+        result = Result(
             total_number=total_questions,
             correct=0,
             not_attempt=0,
@@ -128,7 +128,7 @@ def quiz():
         )
         for i in range(1, total_questions+1):
             q, o = data.get(f"q{i}", None), data.get(f"q{i}o", None)
-            question = models.Question.query.filter_by(
+            question = Question.query.filter_by(
                 id=q,
                 correct_option=o,
                 verified=True
@@ -143,21 +143,21 @@ def quiz():
         flash("quiz complete", "success")
         return redirect(url_for("main.result"))
     print("abcdefg", current_user, current_user.question_set)
-    questions = models.Question.query.filter_by(
+    questions = Question.query.filter_by(
         question_set_id = current_user.question_set
     ).all()
     shuffle(questions)
     return render(
         "quiz.html",
         questions=questions,
-        show=True if models.Result.query.filter_by(user_id=current_user.id).first() is None else False
+        show=True if Result.query.filter_by(user_id=current_user.id).first() is None else False
     )
 
 
 @main.route("/result")
 @login_required
 def result():
-    res = models.Result.query.filter_by(
+    res = Result.query.filter_by(
         user_id=current_user.id
     ).all()
     if res is not None:
@@ -169,7 +169,7 @@ def result():
     else:
         return render(
             "result.html",
-            results=models.Result(
+            results=Result(
                 user_id=current_user.id,
                 total_number=0,
                 correct=0,
@@ -182,8 +182,8 @@ def result():
 @main.route("/leaderboard")
 @login_required
 def leaderboard():
-    res = models.Result.query.order_by(
-        models.Result.correct.desc()
+    res = Result.query.order_by(
+        Result.correct.desc()
     ).all()
     return render("leaderboard.html", results=res)
 
@@ -231,7 +231,7 @@ def admin():
 @login_required
 def admin_results():
     if current_user.is_admin:
-        res = models.Result.query.all()
+        res = Result.query.all()
         return render("admin/result.html", results=res)
     else:
         flash("You are not an admin, so you can't access this portal", "warning")
@@ -246,12 +246,12 @@ def admin_add_questions():
             for i in data:
                 if data[i] == "on":
                     qno = int(i[1:])
-                    q = models.Question.query.filter_by(id=qno).first()
+                    q = Question.query.filter_by(id=qno).first()
                     q.verified = True
                     db.session.commit()
                     changed += 1
             flash(f"{changed} questions added.", "success")
-        qs = models.Question.query.filter_by(verified=False).all()
+        qs = Question.query.filter_by(verified=False).all()
         return render("admin/add_questions.html", questions=qs)
     else:
         flash("You are not an admin, so you can't access this page", "warning")
@@ -260,19 +260,29 @@ def admin_add_questions():
 @main.route("/admin/upload", methods=["GET", "POST"])
 @login_required
 def admin_upload_questions():
-    if current_user.is_admin:
-        if request.method == "POST":
-            if 'qFile' not in request.files:
-                flash('No file part')
-                return redirect(request.url)
-            file = request.files['qFile']
-            if (fname:=file.filename) == '':
-                flash('No selected file')
-                return redirect(request.url)
-            if file and ('.' in fname and fname.rsplit('.', 1)[1].lower() in ["csv"]):
-                flocation = join(dirname(__file__), "..", "upload_files", "questions.csv")
-                file.save(flocation)
-                qbank = load_questions(flocation)
+    if not current_user.is_admin:
+        flash("You are not an admin, so you can't access this page", "warning")
+        return redirect(url_for("main.index"))
+
+    if request.method == "POST":
+        file = request.files.get('qFile')
+        if not file:
+            flash('No file part', 'error')
+            return redirect(request.url)
+
+        filename = secure_filename(file.filename)
+        if not filename:
+            flash('No selected file', 'error')
+            return redirect(request.url)
+
+        if filename.endswith('.csv'):
+            # Save the file to a secure location
+            file_location = join(dirname(__file__), "..", "upload_files", "questions.csv")
+            file.save(file_location)
+            
+            # Process the uploaded file
+            try:
+                qbank = load_questions(file_location)
                 q_added = add_to_db(
                     qbank=qbank,
                     app=current_app,
@@ -280,11 +290,12 @@ def admin_upload_questions():
                     verbose=False
                 )
                 flash(f"{q_added} questions added successfully", "success")
+            except Exception as e:
+                flash(f"An error occurred while processing the file: {str(e)}", "error")
+        else:
+            flash('Invalid file type, please upload a CSV file.', 'error')
 
-        return render("admin/upload_questions.html")
-    else:
-        flash("You are not an admin, so you can't access this page", "warning")
-        return redirect(url_for("main.index"))
+    return render("admin/upload_questions.html")
 
 @main.route("/admin/create_set", methods=["GET", "POST"])
 @login_required
@@ -293,7 +304,7 @@ def admin_create_set():
         if request.method == "POST":
             data, added = request.form, 0
             set_name = data.get("set_name", "abcd")
-            q_set = models.QuestionSet(
+            q_set = QuestionSet(
                 name=set_name
             )
             db.session.add(q_set)
@@ -301,14 +312,14 @@ def admin_create_set():
             for i in data:
                 if data[i] == "on":
                     qno = int(i[1:])
-                    q = models.Question.query.filter_by(id=qno).first()
+                    q = Question.query.filter_by(id=qno).first()
                     q.question_set_id = q_set.id
                     db.session.commit()
                     added += 1
             flash(f"{added} questions added successfully to set {q_set.name}", "success")
         return render(
             "admin/create_set.html", 
-            questions = models.Question.query.filter_by(
+            questions = Question.query.filter_by(
                 question_set_id = None,
                 verified=True
             ).all()
@@ -323,7 +334,7 @@ def admin_show_sets():
     if current_user.is_admin:
         return render(
             "admin/show_sets.html",
-            sets = models.QuestionSet.query.all()
+            sets = QuestionSet.query.all()
         )
     else:
         flash("You are not an admin, so you can't access this page", "warning")
@@ -335,13 +346,13 @@ def admin_distribute_sets():
     if current_user.is_admin:
         if request.method == "POST":
             data, changed = request.form.to_dict(), 0
-            qset = models.QuestionSet.query.filter_by(
+            qset = QuestionSet.query.filter_by(
                 id = int(data.get("set", 0))
             ).first()
             del data["set"]
             for i, j in data.items():
                 if j == "on":
-                    u = models.User.query.filter_by(
+                    u = User.query.filter_by(
                         id=int(i[1:])
                     ).first()
                     u.question_set = qset.id
@@ -351,8 +362,8 @@ def admin_distribute_sets():
             
         return render(
             "admin/distribute_sets.html",
-            sets = models.QuestionSet.query.all(),
-            users = models.User.query.filter_by(
+            sets = QuestionSet.query.all(),
+            users = User.query.filter_by(
                 question_set = None,
                 is_admin=False
             ).all()
