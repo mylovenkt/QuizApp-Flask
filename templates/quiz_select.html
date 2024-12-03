@@ -1,0 +1,35 @@
+{% extends 'layout.html' %}
+{% block title %}Select Quiz{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1 class="text-center mb-4">Select Quiz to Take</h1>
+    
+    <div class="row">
+        {% for set in question_sets %}
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ set.name }}</h5>
+                    <p class="card-text">
+                        Time Limit: {{ set.time_limit // 60 }} minutes<br>
+                        Questions: {{ set.questions|length }}
+                    </p>
+                    {% if set.id in completed_sets %}
+                        <button class="btn btn-success" disabled>Completed</button>
+                    {% else %}
+                        <a href="{{ url_for('main.quiz', set_id=set.id) }}" class="btn btn-primary">Take Quiz</a>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('main.quiz_discussion', set_id=set.id) }}" 
+                       class="btn btn-outline-primary">
+                        <i class="fas fa-comments"></i> Join Discussion
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

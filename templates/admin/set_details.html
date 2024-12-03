@@ -1,0 +1,168 @@
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>{{ quiz_set.name }}</h3>
+        <div>
+            <span class="badge bg-primary me-2">{{ quiz_set.questions|length }} Questions</span>
+            <span class="badge bg-info">{{ quiz_set.users.count() }} Users</span>
+        </div>
+    </div>
+    
+    <!-- Set Info -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Basic Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Time Limit:</strong> {{ quiz_set.time_limit // 60 }}:{{ '%02d'|format(quiz_set.time_limit % 60) }}</p>
+                    <p><strong>Created:</strong> {{ quiz_set.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                    <p><strong>Last Modified:</strong> {{ quiz_set.updated_at.strftime('%Y-%m-%d %H:%M') if quiz_set.updated_at else 'Never' }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Difficulty Distribution -->
+                    <p><strong>Difficulty Distribution:</strong></p>
+                    <div class="progress mb-3" style="height: 20px;">
+                        {% set difficulties = {'easy': 0, 'medium': 0, 'hard': 0} %}
+                        {% for question in quiz_set.questions %}
+                            {% set _ = difficulties.update({question.difficulty: difficulties[question.difficulty] + 1}) %}
+                        {% endfor %}
+                        {% set total = quiz_set.questions|length %}
+                        {% if total > 0 %}
+                            <div class="progress-bar bg-success" style="width: {{ (difficulties.easy / total * 100)|round }}%">
+                                Easy ({{ difficulties.easy }})
+                            </div>
+                            <div class="progress-bar bg-warning" style="width: {{ (difficulties.medium / total * 100)|round }}%">
+                                Medium ({{ difficulties.medium }})
+                            </div>
+                            <div class="progress-bar bg-danger" style="width: {{ (difficulties.hard / total * 100)|round }}%">
+                                Hard ({{ difficulties.hard }})
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Category Distribution -->
+                    <p><strong>Categories:</strong></p>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% set categories = {} %}
+                        {% for question in quiz_set.questions %}
+                            {% if question.category %}
+                                {% if question.category.name in categories %}
+                                    {% set _ = categories.update({question.category.name: categories[question.category.name] + 1}) %}
+                                {% else %}
+                                    {% set _ = categories.update({question.category.name: 1}) %}
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                        {% for category, count in categories.items() %}
+                        <span class="badge bg-info">{{ category }} ({{ count }})</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Questions List -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Questions</h5>
+            <input type="text" class="form-control form-control-sm w-auto" 
+                   id="questionSearch" placeholder="Search questions...">
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="questionsTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question</th>
+                            <th>Category</th>
+                            <th>Difficulty</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for question in quiz_set.questions %}
+                        <tr class="question-row">
+                            <td>{{ loop.index }}</td>
+                            <td>{{ question.question }}</td>
+                            <td>{{ question.category.name if question.category else 'N/A' }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if question.difficulty == 'easy' 
+                                    else 'warning' if question.difficulty == 'medium' 
+                                    else 'danger' }}">
+                                    {{ question.difficulty|title }}
+                                </span>
+                            </td>
+                            <td>{{ question.question_type|replace('_', ' ')|title }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assigned Users -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Assigned Users</h5>
+        </div>
+        <div class="card-body">
+            {% if quiz_set.users %}
+            <div class="row">
+                {% for user in quiz_set.users %}
+                <div class="col-md-4 mb-2">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user me-2"></i>
+                        <span>{{ user.name }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No users assigned yet</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('questionSearch').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    document.querySelectorAll('#questionsTable tbody tr').forEach(row => {
+        const questionText = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+        row.style.display = questionText.includes(searchTerm) ? '' : 'none';
+    });
+});
+</script>
+
+<style>
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.1);
+    cursor: pointer;
+}
+.card {
+    margin-bottom: 1rem;
+}
+#questionSearch {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+#questionSearch::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+.progress {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+</style> 

@@ -1,0 +1,187 @@
+{% extends 'layout.html' %}
+
+{% block title %}Review Questions{% endblock %}
+
+{% block body %}
+<div class="container">
+    <!-- Header with Select All and Action Buttons -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <div class="form-check me-4">
+                        <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleAllQuestions()">
+                        <label class="form-check-label" for="selectAll">Select All Questions</label>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <div class="btn-group">
+                        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            Selected Actions
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item text-success" href="#" onclick="approveSelected()">
+                                    <i class="fas fa-check me-2"></i>Approve Selected
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="#" onclick="rejectSelected()">
+                                    <i class="fas fa-times me-2"></i>Reject Selected
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            Bulk Actions
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a class="dropdown-item text-success" href="#" onclick="approveAll()">
+                                    <i class="fas fa-check-double me-2"></i>Approve All
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="#" onclick="rejectAll()">
+                                    <i class="fas fa-times-circle me-2"></i>Reject All
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="mb-4">Questions Pending Review</h2>
+    
+    {% if questions %}
+        <div class="row">
+            {% for question in questions %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <input type="checkbox" class="form-check-input me-2 question-checkbox" 
+                                   value="{{ question.id }}">
+                            <span>From: {{ question.creator.name }}</span>
+                        </div>
+                        <small class="text-muted">{{ question.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ question.question[:100] }}...</h5>
+                        <p class="card-text">
+                            <span class="badge bg-primary">{{ question.category.name }}</span>
+                            <span class="badge bg-secondary">{{ question.question_type }}</span>
+                            <span class="badge bg-info">{{ question.difficulty }}</span>
+                        </p>
+                        <a href="{{ url_for('main.admin_review_question', question_id=question.id) }}" 
+                           class="btn btn-primary">
+                            <i class="fas fa-eye me-2"></i>Review Question
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>No questions pending review
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function getSelectedQuestions() {
+    return Array.from(document.querySelectorAll('.question-checkbox:checked'))
+               .map(cb => cb.value);
+}
+
+function approveSelected() {
+    const selectedIds = getSelectedQuestions();
+    if (selectedIds.length === 0) {
+        alert('Please select questions to approve');
+        return;
+    }
+    if (!confirm(`Approve ${selectedIds.length} selected questions?`)) return;
+    
+    bulkAction('approve', selectedIds);
+}
+
+function rejectSelected() {
+    const selectedIds = getSelectedQuestions();
+    if (selectedIds.length === 0) {
+        alert('Please select questions to reject');
+        return;
+    }
+    const reason = prompt('Please provide a reason for rejection:');
+    if (!reason) return;
+    
+    bulkAction('reject', selectedIds, reason);
+}
+
+function approveAll() {
+    if (!confirm('Approve all pending questions?')) return;
+    const allIds = Array.from(document.querySelectorAll('.question-checkbox'))
+                       .map(cb => cb.value);
+    bulkAction('approve', allIds);
+}
+
+function rejectAll() {
+    const reason = prompt('Please provide a reason for rejecting all questions:');
+    if (!reason) return;
+    
+    const allIds = Array.from(document.querySelectorAll('.question-checkbox'))
+                       .map(cb => cb.value);
+    bulkAction('reject', allIds, reason);
+}
+
+function bulkAction(action, questionIds, reason = null) {
+    fetch('/admin/questions/bulk-review', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: action,
+            question_ids: questionIds,
+            reason: reason
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'An error occurred');
+        }
+    });
+}
+
+function toggleAllQuestions() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const questionCheckboxes = document.querySelectorAll('.question-checkbox');
+    questionCheckboxes.forEach(cb => {
+        cb.checked = selectAllCheckbox.checked;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const questionCheckboxes = document.querySelectorAll('.question-checkbox');
+    questionCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectAllState);
+    });
+});
+
+function updateSelectAllState() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const questionCheckboxes = document.querySelectorAll('.question-checkbox');
+    const allChecked = Array.from(questionCheckboxes).every(cb => cb.checked);
+    const someChecked = Array.from(questionCheckboxes).some(cb => cb.checked);
+    
+    selectAllCheckbox.checked = allChecked;
+    selectAllCheckbox.indeterminate = someChecked && !allChecked;
+}
+</script>
+{% endblock %} 

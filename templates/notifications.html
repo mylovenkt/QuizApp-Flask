@@ -1,0 +1,246 @@
+{% extends 'layout.html' %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block styles %}
+<style>
+.notification-card {
+    transition: transform 0.2s;
+    margin-bottom: 1rem;
+}
+
+.notification-card:hover {
+    transform: translateY(-2px);
+}
+
+.notification-high-priority {
+    border-left: 4px solid #dc3545;
+    background-color: rgba(220, 53, 69, 0.1);
+}
+
+.notification-unread {
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+.notification-expired {
+    opacity: 0.7;
+}
+
+.notification-group-date {
+    font-weight: bold;
+    margin: 1.5rem 0 0.5rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.notification-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.notification-metadata {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-top: 0.5rem;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    <!-- Header with controls -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Notifications</h2>
+        <div class="d-flex gap-2">
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                    Filter
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="?filter=all">All</a></li>
+                    <li><a class="dropdown-item" href="?filter=unread">Unread</a></li>
+                    <li><a class="dropdown-item" href="?filter=high">High Priority</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="?filter=info">Information</a></li>
+                    <li><a class="dropdown-item" href="?filter=success">Success</a></li>
+                    <li><a class="dropdown-item" href="?filter=warning">Warning</a></li>
+                    <li><a class="dropdown-item" href="?filter=quiz">Quiz</a></li>
+                    <li><a class="dropdown-item" href="?filter=admin">Administrative</a></li>
+                </ul>
+            </div>
+            <button class="btn btn-primary" onclick="markAllRead()">
+                <i class="fas fa-check-double me-2"></i>Mark All Read
+            </button>
+            <button class="btn btn-danger" onclick="clearAll()">
+                <i class="fas fa-trash-alt me-2"></i>Clear All
+            </button>
+        </div>
+    </div>
+
+    <!-- Notifications list -->
+    {% if notifications %}
+        {% for notification in notifications %}
+        <div class="card notification-card 
+                    {% if notification.priority == 'high' %}notification-high-priority{% endif %}
+                    {% if not notification.is_read %}notification-unread{% endif %}
+                    {% if notification.expiry_date and notification.expiry_date < now %}notification-expired{% endif %}"
+             id="notification-{{ notification.id }}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="card-title mb-1">
+                            {% if not notification.is_read %}
+                            <span class="badge bg-primary me-2">New</span>
+                            {% endif %}
+                            {% if notification.priority == 'high' %}
+                            <span class="badge bg-danger me-2">High Priority</span>
+                            {% endif %}
+                            {{ notification.title }}
+                        </h5>
+                        <p class="card-text">{{ notification.message }}</p>
+                        
+                        {% if notification.extra_data %}
+                        <div class="notification-metadata">
+                            {% for key, value in notification.extra_data.items() %}
+                            <span class="me-3"><strong>{{ key }}:</strong> {{ value }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="notification-actions">
+                            {% if notification.link %}
+                                {% if 'verify-email' in notification.link %}
+                                    <a href="{{ notification.link }}" class="btn btn-sm btn-success">
+                                        <i class="fas fa-envelope-open me-1"></i>Verify Email
+                                    </a>
+                                {% else %}
+                                    <a href="{{ notification.link }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-external-link-alt me-1"></i>View
+                                    </a>
+                                {% endif %}
+                            {% endif %}
+                            <button class="btn btn-sm btn-outline-secondary" 
+                                    onclick="markAsRead({{ notification.id }})">
+                                <i class="fas fa-check me-1"></i>Mark as Read
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" 
+                                    onclick="deleteNotification({{ notification.id }})">
+                                <i class="fas fa-times me-1"></i>Delete
+                            </button>
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        {{ notification.created_at|timeago }}
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-bell-slash me-2"></i>No notifications
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function markAsRead(notificationId) {
+    fetch(`/notifications/${notificationId}/read`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const notification = document.getElementById(`notification-${notificationId}`);
+            notification.classList.remove('notification-unread');
+            updateUnreadCount(data.unread_count);
+        }
+    });
+}
+
+function markAllRead() {
+    if (!confirm('Mark all notifications as read?')) return;
+    
+    fetch('/notifications/mark-all-read', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.querySelectorAll('.notification-unread')
+                .forEach(el => el.classList.remove('notification-unread'));
+            updateUnreadCount(0);
+        }
+    });
+}
+
+function deleteNotification(notificationId) {
+    if (!confirm('Delete this notification?')) return;
+    
+    fetch(`/notifications/${notificationId}/delete`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const notification = document.getElementById(`notification-${notificationId}`);
+            notification.remove();
+            updateUnreadCount(data.unread_count);
+        }
+    });
+}
+
+function clearAll() {
+    if (!confirm('Delete all notifications?')) return;
+    
+    fetch('/notifications/clear-all', {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+
+function updateUnreadCount(count) {
+    const badge = document.querySelector('.nav-link .badge');
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count;
+            badge.style.display = 'inline';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+}
+
+// Connect to WebSocket for real-time notifications
+const socket = io();
+socket.on('new_notification', function(notification) {
+    // Add new notification to the list
+    const container = document.querySelector('.notification-list');
+    const template = `
+        <div class="card notification-card notification-unread" id="notification-${notification.id}">
+            <!-- Template HTML similar to Jinja template above -->
+        </div>
+    `;
+    container.insertAdjacentHTML('afterbegin', template);
+    updateUnreadCount(notification.unread_count);
+});
+</script>
+{% endblock %} 

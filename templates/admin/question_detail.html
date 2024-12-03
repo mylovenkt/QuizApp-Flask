@@ -1,0 +1,73 @@
+<div class="question-details">
+    <div class="mb-4">
+        <h6 class="text-muted">Question Text</h6>
+        <p>{{ question.question }}</p>
+    </div>
+
+    {% if question.image_url %}
+    <div class="mb-4">
+        <h6 class="text-muted">Question Image</h6>
+        <img src="{{ url_for('static', filename='uploads/' + question.image_url) }}" 
+             class="img-fluid rounded" alt="Question Image"
+             style="max-height: 200px;">
+    </div>
+    {% endif %}
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <h6 class="text-muted">Category</h6>
+            <p>{{ question.category.name }}</p>
+        </div>
+        <div class="col-md-4">
+            <h6 class="text-muted">Difficulty</h6>
+            <p>{{ question.difficulty.title() }}</p>
+        </div>
+        <div class="col-md-4">
+            <h6 class="text-muted">Type</h6>
+            <p>{{ question.question_type.replace('_', ' ').title() }}</p>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <h6 class="text-muted">Options</h6>
+        <div class="options-list">
+            {% if question.question_type == 'true_false' %}
+                {% for option in [('T', 'True'), ('F', 'False')] %}
+                <div class="option-item p-2 rounded mb-2 {% if option[0] == question.correct_option %}bg-success text-white{% endif %}">
+                    {{ option[1] }}
+                    {% if option[0] == question.correct_option %}
+                    <i class="fas fa-check float-end"></i>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                {% for option in [('A', question.option1), ('B', question.option2), ('C', question.option3), ('D', question.option4)] %}
+                {% if option[1] %}
+                <div class="option-item p-2 rounded mb-2 {% if option[0] == question.correct_option %}bg-success text-white{% endif %}">
+                    {{ option[0] }}. {{ option[1] }}
+                    {% if option[0] == question.correct_option %}
+                    <i class="fas fa-check float-end"></i>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <h6 class="text-muted">Status</h6>
+        <p>
+            {% if question.verified %}
+            <span class="badge bg-success">Verified</span>
+            {% else %}
+            <span class="badge bg-warning">Pending Verification</span>
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="mb-4">
+        <h6 class="text-muted">Created By</h6>
+        <p>{{ question.creator.name }}</p>
+    </div>
+</div> 

@@ -1,0 +1,322 @@
+{% extends 'layout.html' %}
+{% block title %}Quiz - {{ question_set.name }}{% endblock %}
+
+{% block body %}
+<div class="container">
+    <!-- Timer and Progress -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="alert alert-info d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-clock"></i> Time Remaining:</span>
+                <span id="time" class="badge bg-light text-dark">--:--</span>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="progress" style="height: 30px;">
+                <div class="progress-bar bg-success" role="progressbar" id="quiz-progress" style="width: 0%;" 
+                     aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                    <span id="current-question">1</span> of {{ questions|length }} Questions
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" action="{{ url_for('main.submit_quiz') }}" id="quizForm">
+        <input type="hidden" name="set_id" value="{{ question_set.id }}">
+        <input type="hidden" name="time_taken" id="timeTaken" value="0">
+        <input type="hidden" name="total_questions" value="{{ questions|length }}">
+
+        <!-- Question Navigation -->
+        <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="mb-0">Question Navigator</h5>
+                <small class="text-muted">Click numbers to jump to questions</small>
+            </div>
+            <div class="btn-group" role="group" aria-label="Question navigation">
+                {% for q in questions %}
+                <button type="button" class="btn btn-outline-secondary question-nav" 
+                        data-question="{{ loop.index }}"
+                        id="nav-{{ loop.index }}"
+                        title="Question {{ loop.index }}{% if q.question_type == 'true_false' %} - True/False{% else %} - Multiple Choice{% endif %}">
+                    {{ loop.index }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Questions Container -->
+        <div id="questions-container">
+            {% for q in questions %}
+            <div class="question-card card border-info mb-3" id="question-{{ loop.index }}" 
+                 style="display: {% if loop.index == 1 %}block{% else %}none{% endif %};">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Question {{ loop.index }} of {{ questions|length }}</h5>
+                    <div>
+                        {% if not loop.first %}
+                        <button type="button" class="btn btn-light btn-sm prev-question">
+                            <i class="fas fa-arrow-left"></i> Previous
+                        </button>
+                        {% endif %}
+                        {% if not loop.last %}
+                        <button type="button" class="btn btn-light btn-sm next-question">
+                            Next <i class="fas fa-arrow-right"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title user-select-none mb-4">{{ q.question }}</h5>
+                    {% if q.image_url %}
+                    <div class="text-center mb-4">
+                        <div class="question-image-container">
+                            <img src="{{ url_for('static', filename='uploads/' + q.image_url) }}" 
+                                 class="img-fluid rounded question-image" alt="Question Image">
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="options-group">
+                        <label class="d-block mb-3 text-muted">Select your answer:</label>
+                        {% if q.question_type == 'true_false' %}
+                        <div class="form-check mb-3">
+                            <input class="form-check-input question-option" type="radio" 
+                                   name="q{{ loop.index }}o" id="q{{ loop.index }}oT" value="T"
+                                   data-question="{{ loop.index }}">
+                            <label class="form-check-label" for="q{{ loop.index }}oT">True</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input question-option" type="radio" 
+                                   name="q{{ loop.index }}o" id="q{{ loop.index }}oF" value="F"
+                                   data-question="{{ loop.index }}">
+                            <label class="form-check-label" for="q{{ loop.index }}oF">False</label>
+                        </div>
+                        {% else %}
+                        <div class="form-check mb-3">
+                            <input class="form-check-input question-option" type="radio" 
+                                   name="q{{ loop.index }}o" id="q{{ loop.index }}oA" value="A"
+                                   data-question="{{ loop.index }}">
+                            <label class="form-check-label" for="q{{ loop.index }}oA">A. {{ q.option1 }}</label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input question-option" type="radio" 
+                                   name="q{{ loop.index }}o" id="q{{ loop.index }}oB" value="B"
+                                   data-question="{{ loop.index }}">
+                            <label class="form-check-label" for="q{{ loop.index }}oB">B. {{ q.option2 }}</label>
+                        </div>
+                        {% if q.option3 %}
+                        <div class="form-check mb-3">
+                            <input class="form-check-input question-option" type="radio" 
+                                   name="q{{ loop.index }}o" id="q{{ loop.index }}oC" value="C"
+                                   data-question="{{ loop.index }}">
+                            <label class="form-check-label" for="q{{ loop.index }}oC">C. {{ q.option3 }}</label>
+                        </div>
+                        {% endif %}
+                        {% if q.option4 %}
+                        <div class="form-check mb-3">
+                            <input class="form-check-input question-option" type="radio" 
+                                   name="q{{ loop.index }}o" id="q{{ loop.index }}oD" value="D"
+                                   data-question="{{ loop.index }}">
+                            <label class="form-check-label" for="q{{ loop.index }}oD">D. {{ q.option4 }}</label>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        <input type="hidden" name="question_{{ loop.index }}_id" value="{{ q.id }}">
+                        <input type="hidden" name="correct_{{ loop.index }}" value="{{ q.correct_option }}">
+                    </div>
+                    <a href="{{ url_for('main.question_discussion', question_id=q.id) }}" 
+                       class="btn btn-sm btn-outline-info">
+                        <i class="fas fa-comments"></i> Discuss
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Submit Section -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="alert alert-info mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="confirmCheck" required>
+                        <label class="form-check-label" for="confirmCheck">
+                            <strong>Confirmation:</strong> I have reviewed all questions and am ready to submit my answers
+                        </label>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        Green numbers indicate answered questions
+                    </small>
+                    <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                        <i class="fas fa-paper-plane"></i> Submit Quiz
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+// Timer functionality
+let startTime = Date.now();
+let currentQuestion = 1;
+const totalQuestions = {{ questions|length }};
+let userAnswers = {};  // Add this to track answers
+
+function updateTimer() {
+    const timeLimit = {{ question_set.time_limit }};
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const remaining = Math.max(0, timeLimit - elapsed);
+    
+    const minutes = Math.floor(remaining / 60);
+    const seconds = remaining % 60;
+    
+    document.getElementById('time').textContent = 
+        `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    
+    document.getElementById('timeTaken').value = elapsed;
+    
+    if (remaining > 0) {
+        setTimeout(updateTimer, 1000);
+    } else {
+        document.getElementById('quizForm').submit();
+    }
+}
+
+// Question Navigation
+function showQuestion(questionNumber) {
+    document.querySelectorAll('.question-card').forEach(card => {
+        card.style.display = 'none';
+    });
+    
+    document.getElementById(`question-${questionNumber}`).style.display = 'block';
+    currentQuestion = questionNumber;
+    updateProgress();
+}
+
+function updateProgress() {
+    const progress = (currentQuestion / totalQuestions) * 100;
+    const progressBar = document.getElementById('quiz-progress');
+    progressBar.style.width = `${progress}%`;
+    progressBar.setAttribute('aria-valuenow', progress);
+    document.getElementById('current-question').textContent = currentQuestion;
+}
+
+// Event Listeners
+document.querySelectorAll('.question-nav').forEach(btn => {
+    btn.addEventListener('click', () => {
+        showQuestion(parseInt(btn.dataset.question));
+    });
+});
+
+document.querySelectorAll('.next-question').forEach(btn => {
+    btn.addEventListener('click', () => {
+        if (currentQuestion < totalQuestions) {
+            showQuestion(currentQuestion + 1);
+        }
+    });
+});
+
+document.querySelectorAll('.prev-question').forEach(btn => {
+    btn.addEventListener('click', () => {
+        if (currentQuestion > 1) {
+            showQuestion(currentQuestion - 1);
+        }
+    });
+});
+
+// Mark answered questions and track answers
+document.querySelectorAll('.question-option').forEach(option => {
+    option.addEventListener('change', function() {
+        const questionNum = this.dataset.question;
+        const questionId = document.querySelector(`input[name="question_${questionNum}_id"]`).value;
+        const correctAnswer = document.querySelector(`input[name="correct_${questionNum}"]`).value;
+        
+        // Store answer
+        userAnswers[questionNum] = {
+            questionId: questionId,
+            userAnswer: this.value,
+            correctAnswer: correctAnswer
+        };
+        
+        // Update UI
+        document.getElementById(`nav-${questionNum}`).classList.add('btn-success');
+        document.getElementById(`nav-${questionNum}`).classList.remove('btn-outline-secondary');
+        
+        console.log(`Question ${questionNum}: Selected ${this.value}, Correct: ${correctAnswer}`);
+        updateSubmitButton();
+    });
+});
+
+// Submit button handling
+document.getElementById('confirmCheck').addEventListener('change', updateSubmitButton);
+
+function updateSubmitButton() {
+    const answeredCount = Object.keys(userAnswers).length;
+    const allAnswered = answeredCount === totalQuestions;
+    const confirmed = document.getElementById('confirmCheck').checked;
+    document.getElementById('submitBtn').disabled = !(allAnswered && confirmed);
+    
+    console.log(`Answered: ${answeredCount}/${totalQuestions}`);
+}
+
+// Form submission
+document.getElementById('quizForm').addEventListener('submit', function(e) {
+    // Update time taken
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    document.getElementById('timeTaken').value = elapsed;
+    
+    // Log answers before submission
+    console.log('Submitting answers:', userAnswers);
+    
+    // Add answers to form data
+    Object.keys(userAnswers).forEach(questionNum => {
+        const answer = userAnswers[questionNum];
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = `q${questionNum}o`;
+        input.value = answer.userAnswer;
+        this.appendChild(input);
+    });
+});
+
+// Initialize
+updateTimer();
+updateProgress();
+</script>
+
+<style>
+.options-group {
+    margin-top: 1rem;
+}
+.question-nav {
+    min-width: 40px;
+}
+
+/* New styles for image handling */
+.question-image-container {
+    max-width: 600px;  /* Maximum width of the container */
+    margin: 0 auto;    /* Center the container */
+    background-color: rgba(0, 0, 0, 0.02);  /* Light background */
+    padding: 10px;     /* Padding around image */
+    border-radius: 8px;/* Rounded corners */
+}
+
+.question-image {
+    max-height: 400px;  /* Maximum height of the image */
+    width: auto;        /* Maintain aspect ratio */
+    object-fit: contain;/* Ensure image fits without distortion */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);  /* Subtle shadow */
+}
+
+/* Media query for smaller screens */
+@media (max-width: 768px) {
+    .question-image-container {
+        max-width: 100%;
+    }
+    .question-image {
+        max-height: 300px;
+    }
+}
+</style>
+{% endblock %}

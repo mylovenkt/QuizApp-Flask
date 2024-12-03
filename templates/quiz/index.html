@@ -1,0 +1,37 @@
+{% extends 'layout.html' %}
+
+{% block title %}Take Quiz{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1 class="mb-4">Available Quiz Sets</h1>
+    
+    {% if quiz_sets %}
+        <div class="row">
+            {% for quiz_set in quiz_sets %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">{{ quiz_set.name }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>Questions: {{ quiz_set.questions|length }}</p>
+                        <p>Time Limit: {{ quiz_set.time_limit // 60 }} minutes</p>
+                        <form method="post">
+                            <input type="hidden" name="set" value="{{ quiz_set.id }}">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-play me-2"></i>Start Quiz
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>You don't have any quiz sets assigned to you yet.
+        </div>
+    {% endif %}
+</div>
+{% endblock %} 

@@ -1,0 +1,102 @@
+{% extends 'layout.html' %}
+{% block title %}Manage Categories{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1 class="text-center mb-4">Manage Categories</h1>
+    
+    <!-- Add/Edit Category Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0" id="formTitle">Add New Category</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" id="categoryForm">
+                <input type="hidden" name="category_id" id="categoryId">
+                <div class="mb-3">
+                    <label for="name" class="form-label">Category Name</label>
+                    <input type="text" class="form-control" id="name" name="name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" id="submitBtn">Add Category</button>
+                <button type="button" class="btn btn-secondary" id="cancelBtn" style="display: none;" onclick="resetForm()">Cancel</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Categories List -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Categories</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Questions</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for category in categories %}
+                        <tr>
+                            <td>{{ category.name }}</td>
+                            <td>{{ category.description }}</td>
+                            <td>{{ category.questions|length }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick='editCategory({
+                                    "id": {{ category.id }},
+                                    "name": "{{ category.name }}",
+                                    "description": "{{ category.description|default("", true) }}"
+                                })'>Edit</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteCategory({{ category.id }})">Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function editCategory(category) {
+    document.getElementById('categoryId').value = category.id;
+    document.getElementById('name').value = category.name;
+    document.getElementById('description').value = category.description;
+    document.getElementById('formTitle').textContent = 'Edit Category';
+    document.getElementById('submitBtn').textContent = 'Update Category';
+    document.getElementById('cancelBtn').style.display = 'inline-block';
+}
+
+function resetForm() {
+    document.getElementById('categoryForm').reset();
+    document.getElementById('categoryId').value = '';
+    document.getElementById('formTitle').textContent = 'Add New Category';
+    document.getElementById('submitBtn').textContent = 'Add Category';
+    document.getElementById('cancelBtn').style.display = 'none';
+}
+
+function deleteCategory(categoryId) {
+    if (confirm('Are you sure you want to delete this category?')) {
+        fetch(`/admin/categories/${categoryId}`, {
+            method: 'DELETE',
+        }).then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                window.location.reload();
+            }
+        });
+    }
+}
+</script>
+{% endblock %} 

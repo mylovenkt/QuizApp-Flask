@@ -1,0 +1,108 @@
+{% extends 'layout.html' %}
+
+{% block title %}{{ user.name }}'s Profile{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="row">
+        <!-- Profile Header -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <img src="{{ user.get_avatar_url }}" 
+                             alt="Avatar" class="rounded-circle me-4" 
+                             style="width: 120px; height: 120px; object-fit: cover;">
+                        <div>
+                            <h2 class="mb-1">{{ user.full_name or user.name }}</h2>
+                            {% if user.email %}
+                            <p class="text-muted mb-2">
+                                <i class="fas fa-envelope me-2"></i>{{ user.email }}
+                            </p>
+                            {% endif %}
+                            <p class="mb-2">
+                                <i class="fas fa-clock me-2"></i>Member since {{ user.date_joined.strftime('%B %Y') }}
+                            </p>
+                            {% if user == current_user %}
+                            <a href="{{ url_for('main.edit_profile') }}" class="btn btn-primary">
+                                <i class="fas fa-edit me-2"></i>Edit Profile
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Content -->
+        <div class="col-md-8">
+            <!-- Bio -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">About Me</h5>
+                </div>
+                <div class="card-body">
+                    {{ user.bio or 'No bio added yet.' }}
+                </div>
+            </div>
+
+            <!-- Activity -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Add recent quizzes, contributions, etc. -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <!-- Stats -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Quizzes Taken:</span>
+                        <span class="badge bg-primary">{{ user.results|length }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Questions Added:</span>
+                        <span class="badge bg-success">{{ user.questions|length }}</span>
+                    </div>
+                    <!-- Add more stats -->
+                </div>
+            </div>
+
+            <!-- Social Links -->
+            {% if user.social_links %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Connect</h5>
+                </div>
+                <div class="card-body">
+                    {% if user.social_links.github %}
+                    <a href="{{ user.social_links.github }}" class="btn btn-dark mb-2 w-100">
+                        <i class="fab fa-github me-2"></i>GitHub
+                    </a>
+                    {% endif %}
+                    {% if user.social_links.linkedin %}
+                    <a href="{{ user.social_links.linkedin }}" class="btn btn-primary mb-2 w-100">
+                        <i class="fab fa-linkedin me-2"></i>LinkedIn
+                    </a>
+                    {% endif %}
+                    {% if user.social_links.twitter %}
+                    <a href="{{ user.social_links.twitter }}" class="btn btn-info w-100">
+                        <i class="fab fa-twitter me-2"></i>Twitter
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

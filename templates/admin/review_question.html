@@ -1,0 +1,128 @@
+{% extends 'layout.html' %}
+
+{% block title %}Review Question{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3>Review Question</h3>
+            <small class="text-muted">Submitted by {{ question.creator.name }}</small>
+        </div>
+        <div class="card-body">
+            <div class="mb-4">
+                <h5>Question Details</h5>
+                <div class="table-responsive">
+                    <table class="table">
+                        <tr>
+                            <th>Category:</th>
+                            <td>{{ question.category.name }}</td>
+                            <th>Type:</th>
+                            <td>{{ question.question_type }}</td>
+                        </tr>
+                        <tr>
+                            <th>Difficulty:</th>
+                            <td>{{ question.difficulty }}</td>
+                            <th>Submitted:</th>
+                            <td>{{ question.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <h5>Question</h5>
+                <p class="lead">{{ question.question }}</p>
+                
+                {% if question.image_url %}
+                <div class="text-center mb-3">
+                    <img src="{{ url_for('static', filename=question.image_url) }}" 
+                         alt="Question Image" class="img-fluid">
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-4">
+                <h5>Options</h5>
+                {% if question.question_type == 'true_false' %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" disabled 
+                               {% if question.correct_option == 'T' %}checked{% endif %}>
+                        <label class="form-check-label">True</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" disabled 
+                               {% if question.correct_option == 'F' %}checked{% endif %}>
+                        <label class="form-check-label">False</label>
+                    </div>
+                {% else %}
+                    {% for option in ['option1', 'option2', 'option3', 'option4'] %}
+                    {% if question[option] %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" disabled 
+                               {% if question.correct_option == option[-1]|upper %}checked{% endif %}>
+                        <label class="form-check-label">{{ question[option] }}</label>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <button class="btn btn-danger" onclick="rejectQuestion()">
+                    <i class="fas fa-times me-2"></i>Reject
+                </button>
+                <button class="btn btn-success" onclick="approveQuestion()">
+                    <i class="fas fa-check me-2"></i>Approve
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function approveQuestion() {
+    if (!confirm('Are you sure you want to approve this question?')) return;
+    
+    fetch(`/admin/questions/review`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            question_id: {{ question.id }},
+            action: 'approve'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = "{{ url_for('main.admin') }}";
+        }
+    });
+}
+
+function rejectQuestion() {
+    const reason = prompt('Please provide a reason for rejection:');
+    if (!reason) return;
+    
+    fetch(`/admin/questions/review`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            question_id: {{ question.id }},
+            action: 'reject',
+            reason: reason
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = "{{ url_for('main.admin') }}";
+        }
+    });
+}
+</script>
+{% endblock %}

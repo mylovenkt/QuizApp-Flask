@@ -1,0 +1,11 @@
+Question,Type,Option1,Option2,Option3,Option4,Correct Answer,Category,Difficulty,Explanation
+What is the capital of France?,multiple_choice,London,Paris,Berlin,Madrid,B,Geography,easy,Paris is the capital city of France
+Which planet is known as the Red Planet?,multiple_choice,Venus,Jupiter,Mars,Saturn,C,Science,medium,Mars appears red due to iron oxide on its surface
+What is 2 + 2?,multiple_choice,3,4,5,6,B,Mathematics,easy,Basic addition problem
+Is water a liquid at room temperature?,true_false,True,False,,,T,Science,easy,Water is liquid at room temperature (20°C)
+Who wrote 'Romeo and Juliet'?,multiple_choice,Charles Dickens,William Shakespeare,Jane Austen,Mark Twain,B,Literature,medium,William Shakespeare wrote this famous play
+What is the largest mammal?,multiple_choice,African Elephant,Blue Whale,Giraffe,Hippopotamus,B,Biology,easy,The Blue Whale is the largest animal known to have existed
+What is the chemical symbol for Gold?,multiple_choice,Au,Ag,Fe,Cu,A,Chemistry,medium,Au comes from the Latin word 'aurum'
+Is the Earth flat?,true_false,True,False,,,F,Science,easy,The Earth is spherical in shape
+What is the square root of 16?,multiple_choice,2,3,4,5,C,Mathematics,easy,4 x 4 = 16
+Who painted the Mona Lisa?,multiple_choice,Van Gogh,Da Vinci,Picasso,Rembrandt,B,Art,medium,Leonardo da Vinci painted the Mona Lisa

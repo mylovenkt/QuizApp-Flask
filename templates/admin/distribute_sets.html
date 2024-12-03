@@ -1,0 +1,229 @@
+{% extends 'layout.html' %}
+
+{% block title %}Distribute Quiz Set{% endblock %}
+
+{% block styles %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+.select2-container--default .select2-selection--multiple {
+    border-color: #ced4da;
+}
+.select2-container--default.select2-container--focus .select2-selection--multiple {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+.assigned-users .badge {
+    font-size: 0.9em;
+    padding: 0.5em 0.7em;
+}
+.btn-close {
+    font-size: 0.5em;
+    padding: 0.25em;
+}
+.select2-container--default .select2-selection--multiple {
+    background-color: #2b3035;
+    border-color: #495057;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: #0d6efd;
+    color: white;
+    border: none;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: white;
+    border-right: none;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    background-color: #0b5ed7;
+    color: white;
+}
+.select2-dropdown {
+    background-color: #2b3035;
+    border-color: #495057;
+}
+.select2-container--default .select2-results__option {
+    color: #fff;
+}
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #0d6efd;
+    color: white;
+}
+.select2-container--default .select2-results__option[aria-selected=true] {
+    background-color: #1c1f23;
+}
+.select2-search__field {
+    background-color: #2b3035 !important;
+    color: white !important;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    background-color: transparent;
+    color: #dc3545;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="card">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h2 class="mb-0">Distribute Quiz Set</h2>
+            <span class="badge bg-light text-primary">{{ quiz_set.questions|length }} Questions</span>
+        </div>
+        <div class="card-body">
+            <!-- Quiz Set Info -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h4>{{ quiz_set.name }}</h4>
+                    <p class="text-muted">Time Limit: {{ quiz_set.time_limit // 60 }}:{{ '%02d'|format(quiz_set.time_limit % 60) }}</p>
+                </div>
+                <div class="col-md-6">
+                    <h5>Currently Assigned To:</h5>
+                    <div class="assigned-users mb-2">
+                        {% if quiz_set.users %}
+                            {% for user in quiz_set.users %}
+                                <span class="badge bg-info me-1">
+                                    {{ user.name }}
+                                    <button type="button" class="btn-close btn-close-white ms-2" 
+                                            onclick="removeUser({{ quiz_set.id }}, {{ user.id }})"
+                                            aria-label="Remove user"></button>
+                                </span>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted">No users assigned yet</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <form method="POST" id="distributeForm">
+                <!-- Distribution Method -->
+                <div class="mb-4">
+                    <h5>Distribution Method</h5>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="distribution_method" 
+                               id="distributeAll" value="all" checked>
+                        <label class="form-check-label" for="distributeAll">
+                            Distribute to All Users
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="distribution_method" 
+                               id="distributeSelect" value="select">
+                        <label class="form-check-label" for="distributeSelect">
+                            Select Specific Users
+                        </label>
+                    </div>
+                </div>
+
+                <!-- User Selection -->
+                <div id="userSelectionSection" class="mb-4" style="display: none;">
+                    <h5>Select Users</h5>
+                    <select class="form-select" name="users[]" id="users" multiple 
+                            data-placeholder="Select users...">
+                        {% for user in users %}
+                            <option value="{{ user.id }}" 
+                                    {% if user in quiz_set.users %}data-assigned="true"{% endif %}
+                                    {% if user in quiz_set.users %}selected{% endif %}>
+                                {{ user.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">Users with badges are already assigned to this quiz set</small>
+                </div>
+
+                <!-- Distribution Options -->
+                <div class="mb-4">
+                    <h5>Options</h5>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="remove_existing" 
+                               id="removeExisting">
+                        <label class="form-check-label" for="removeExisting">
+                            Remove existing assignments (otherwise will add to existing)
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="notify_users" 
+                               id="notifyUsers">
+                        <label class="form-check-label" for="notifyUsers">
+                            Notify users about the new quiz set
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Submit Buttons -->
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('main.admin_show_sets') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Sets
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-share"></i> Distribute Quiz Set
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Initialize Select2
+    $('#users').select2({
+        placeholder: 'Select users...',
+        width: '100%',
+        templateResult: formatUser,
+        templateSelection: formatUser
+    });
+
+    // Handle distribution method change
+    $('input[name="distribution_method"]').change(function() {
+        $('#userSelectionSection').toggle(this.value === 'select');
+    });
+
+    // Form validation
+    $('#distributeForm').submit(function(e) {
+        if ($('input[name="distribution_method"]:checked').val() === 'select' && 
+            $('#users').val().length === 0) {
+            e.preventDefault();
+            alert('Please select at least one user');
+            return false;
+        }
+    });
+});
+
+function formatUser(user) {
+    if (!user.id) {
+        return user.text;
+    }
+    
+    const $user = $(
+        `<span>${user.text}</span>`
+    );
+    
+    if ($(user.element).data('assigned') === true) {
+        $user.append(' <span class="badge bg-info">Already Assigned</span>');
+    }
+    
+    return $user;
+}
+
+function removeUser(setId, userId) {
+    if (confirm('Are you sure you want to remove this user from the quiz set?')) {
+        fetch(`/admin/sets/${setId}/users/${userId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.error || 'Error removing user');
+            }
+        });
+    }
+}
+</script>
+{% endblock %}
+{% endblock %}

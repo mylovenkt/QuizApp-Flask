@@ -1,0 +1,165 @@
+{% extends 'layout.html' %}
+{% block title %}Edit Question{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Edit Question</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        <!-- Basic Info -->
+                        <div class="mb-3">
+                            <label for="question" class="form-label">Question Text</label>
+                            <textarea class="form-control" id="question" name="question" rows="3" required>{{ question.question }}</textarea>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="category" class="form-label">Category</label>
+                                <select class="form-select" id="category" name="category" required>
+                                    {% for category in categories %}
+                                    <option value="{{ category.id }}" 
+                                            {% if category.id == question.category_id %}selected{% endif %}>
+                                        {{ category.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="difficulty" class="form-label">Difficulty</label>
+                                <select class="form-select" id="difficulty" name="difficulty" required>
+                                    <option value="easy" {% if question.difficulty == 'easy' %}selected{% endif %}>Easy</option>
+                                    <option value="medium" {% if question.difficulty == 'medium' %}selected{% endif %}>Medium</option>
+                                    <option value="hard" {% if question.difficulty == 'hard' %}selected{% endif %}>Hard</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="question_type" class="form-label">Question Type</label>
+                                <select class="form-select" id="question_type" name="question_type" required>
+                                    <option value="multiple_choice" 
+                                            {% if question.question_type == 'multiple_choice' %}selected{% endif %}>
+                                        Multiple Choice
+                                    </option>
+                                    <option value="true_false" 
+                                            {% if question.question_type == 'true_false' %}selected{% endif %}>
+                                        True/False
+                                    </option>
+                                    <option value="image" 
+                                            {% if question.question_type == 'image' %}selected{% endif %}>
+                                        Image Based
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Image Upload -->
+                        <div class="mb-3" id="imageSection">
+                            {% if question.image_url %}
+                            <div class="current-image mb-2">
+                                <label class="form-label">Current Image</label>
+                                <img src="{{ url_for('static', filename='uploads/' + question.image_url) }}" 
+                                     class="img-fluid rounded" alt="Current Image"
+                                     style="max-height: 200px;">
+                            </div>
+                            {% endif %}
+                            <label for="image" class="form-label">Upload New Image</label>
+                            <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                            <small class="text-muted">Leave empty to keep current image</small>
+                        </div>
+
+                        <!-- Options Section -->
+                        <div id="optionsSection">
+                            <!-- True/False Options -->
+                            <div id="trueFalseOptions" style="display: none;">
+                                <div class="mb-3">
+                                    <label class="form-label">Correct Answer</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="correct_tf" 
+                                               id="correctTrue" value="T" 
+                                               {% if question.correct_option == 'T' %}checked{% endif %}>
+                                        <label class="form-check-label" for="correctTrue">True</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="correct_tf" 
+                                               id="correctFalse" value="F"
+                                               {% if question.correct_option == 'F' %}checked{% endif %}>
+                                        <label class="form-check-label" for="correctFalse">False</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Multiple Choice Options -->
+                            <div id="multipleChoiceOptions">
+                                <div class="mb-3">
+                                    <label for="option1" class="form-label">Option A</label>
+                                    <input type="text" class="form-control" id="option1" name="option1" 
+                                           value="{{ question.option1 if question.question_type != 'true_false' else '' }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="option2" class="form-label">Option B</label>
+                                    <input type="text" class="form-control" id="option2" name="option2"
+                                           value="{{ question.option2 if question.question_type != 'true_false' else '' }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="option3" class="form-label">Option C (Optional)</label>
+                                    <input type="text" class="form-control" id="option3" name="option3"
+                                           value="{{ question.option3 or '' }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="option4" class="form-label">Option D (Optional)</label>
+                                    <input type="text" class="form-control" id="option4" name="option4"
+                                           value="{{ question.option4 or '' }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Correct Answer</label>
+                                    <select class="form-select" name="correct_option">
+                                        <option value="A" {% if question.correct_option == 'A' %}selected{% endif %}>Option A</option>
+                                        <option value="B" {% if question.correct_option == 'B' %}selected{% endif %}>Option B</option>
+                                        <option value="C" {% if question.correct_option == 'C' %}selected{% endif %}>Option C</option>
+                                        <option value="D" {% if question.correct_option == 'D' %}selected{% endif %}>Option D</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('main.question_bank') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Update Question</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateFormDisplay() {
+    const questionType = document.getElementById('question_type').value;
+    const trueFalseOptions = document.getElementById('trueFalseOptions');
+    const multipleChoiceOptions = document.getElementById('multipleChoiceOptions');
+    const imageSection = document.getElementById('imageSection');
+    
+    if (questionType === 'true_false') {
+        trueFalseOptions.style.display = 'block';
+        multipleChoiceOptions.style.display = 'none';
+        imageSection.style.display = 'none';
+    } else if (questionType === 'image') {
+        trueFalseOptions.style.display = 'none';
+        multipleChoiceOptions.style.display = 'block';
+        imageSection.style.display = 'block';
+    } else {
+        trueFalseOptions.style.display = 'none';
+        multipleChoiceOptions.style.display = 'block';
+        imageSection.style.display = 'none';
+    }
+}
+
+document.getElementById('question_type').addEventListener('change', updateFormDisplay);
+updateFormDisplay();
+</script>
+{% endblock %} 

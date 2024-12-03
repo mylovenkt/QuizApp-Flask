@@ -1,0 +1,164 @@
+{% extends 'layout.html' %}
+{% block title %}Quiz Review - {{ quiz_set.name }}{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="row mb-4">
+        <!-- Quiz Summary Card -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Quiz Summary</h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="card-title">{{ quiz_set.name }}</h6>
+                    <div class="summary-stats">
+                        <p class="mb-2">Score: <strong>{{ "%.1f"|format(score) }}%</strong></p>
+                        <p class="mb-2">Time Taken: <strong>{{ time_taken }}</strong></p>
+                        <p class="mb-2">Correct Answers: <strong>{{ result.correct }}/{{ result.total_number }}</strong></p>
+                        <div class="progress mb-3" style="height: 20px;">
+                            <div class="progress-bar bg-success" style="width: {{ (result.correct/result.total_number*100)|round }}%">
+                                Correct ({{ result.correct }})
+                            </div>
+                            <div class="progress-bar bg-danger" style="width: {{ (result.incorrect/result.total_number*100)|round }}%">
+                                Incorrect ({{ result.incorrect }})
+                            </div>
+                            <div class="progress-bar bg-secondary" style="width: {{ (result.not_attempt/result.total_number*100)|round }}%">
+                                Not Attempted ({{ result.not_attempt }})
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('main.leaderboard', set_id=quiz_set.id) }}" class="btn btn-outline-primary">
+                            View Leaderboard
+                        </a>
+                        <a href="{{ url_for('main.quiz') }}" class="btn btn-outline-secondary">
+                            Take Another Quiz
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Questions Review -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Question Review</h5>
+                </div>
+                <div class="card-body">
+                    {% for question in questions %}
+                    <div class="question-review mb-4">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h6 class="mb-3">Question {{ loop.index }}</h6>
+                            {% set answered_correctly = answers[question.id] == question.correct_option %}
+                            {% if answered_correctly %}
+                            <span class="badge bg-success">Correct</span>
+                            {% elif answers[question.id] %}
+                            <span class="badge bg-danger">Incorrect</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Not Attempted</span>
+                            {% endif %}
+                        </div>
+
+                        <p class="mb-3">{{ question.question }}</p>
+                        
+                        {% if question.image_url %}
+                        <div class="text-center mb-3">
+                            <div class="question-image-container">
+                                <img src="{{ url_for('static', filename='uploads/' + question.image_url) }}" 
+                                     class="img-fluid rounded question-image" alt="Question Image">
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="options-list">
+                            {% if question.question_type == 'true_false' %}
+                                {% for option in [('T', 'True'), ('F', 'False')] %}
+                                <div class="option-item mb-2 p-2 rounded
+                                    {% if option[0] == question.correct_option %}correct-answer{% endif %}
+                                    {% if answers[question.id] == option[0] and option[0] != question.correct_option %}incorrect-answer{% endif %}">
+                                    {{ option[1] }}
+                                    {% if option[0] == question.correct_option %}
+                                    <i class="fas fa-check text-success"></i>
+                                    {% endif %}
+                                    {% if answers[question.id] == option[0] and option[0] != question.correct_option %}
+                                    <i class="fas fa-times text-danger"></i>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                {% for option in [('A', question.option1), ('B', question.option2), ('C', question.option3), ('D', question.option4)] %}
+                                {% if option[1] %}
+                                <div class="option-item mb-2 p-2 rounded
+                                    {% if option[0] == question.correct_option %}correct-answer{% endif %}
+                                    {% if answers[question.id] == option[0] and option[0] != question.correct_option %}incorrect-answer{% endif %}">
+                                    {{ option[0] }}. {{ option[1] }}
+                                    {% if option[0] == question.correct_option %}
+                                    <i class="fas fa-check text-success"></i>
+                                    {% endif %}
+                                    {% if answers[question.id] == option[0] and option[0] != question.correct_option %}
+                                    <i class="fas fa-times text-danger"></i>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if not loop.last %}<hr>{% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.question-image-container {
+    max-width: 400px;
+    margin: 0 auto;
+    background-color: rgba(0, 0, 0, 0.02);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.question-image {
+    max-height: 300px;
+    width: auto;
+    object-fit: contain;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.option-item {
+    position: relative;
+    padding-right: 30px !important;
+}
+
+.option-item i {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.correct-answer {
+    background-color: rgba(25, 135, 84, 0.1);
+    border: 1px solid rgba(25, 135, 84, 0.2);
+}
+
+.incorrect-answer {
+    background-color: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.2);
+}
+
+@media (max-width: 768px) {
+    .question-image-container {
+        max-width: 100%;
+    }
+    .question-image {
+        max-height: 250px;
+    }
+}
+</style>
+{% endblock %} 

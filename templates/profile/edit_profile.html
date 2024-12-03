@@ -1,0 +1,122 @@
+{% extends 'layout.html' %}
+
+{% block title %}Edit Profile{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">Edit Profile</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <!-- Avatar Section -->
+                        <div class="mb-4 text-center">
+                            <img src="{{ user.get_avatar_url }}" 
+                                 alt="Current Avatar" class="rounded-circle mb-3" 
+                                 style="width: 150px; height: 150px; object-fit: cover;" id="avatarPreview">
+                            <div class="mb-3">
+                                <label for="avatar" class="form-label">Change Avatar</label>
+                                <input type="file" class="form-control" id="avatar" name="avatar" 
+                                       accept="image/*" onchange="previewImage(this)">
+                            </div>
+                        </div>
+
+                        <!-- Basic Info -->
+                        <div class="mb-3">
+                            <label for="full_name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="full_name" name="full_name"
+                                   value="{{ user.full_name or '' }}" placeholder="Your full name">
+                        </div>
+
+                        <!-- Email field with uniqueness indicator -->
+                        <div class="mb-3">
+                            <label for="email" class="form-label">
+                                Email <span class="text-danger">*</span>
+                                <small class="text-muted">(Must be unique)</small>
+                            </label>
+                            <input type="email" 
+                                   class="form-control" 
+                                   id="email" 
+                                   name="email"
+                                   value="{{ user.email or '' }}" 
+                                   placeholder="your.email@example.com"
+                                   required>
+                            <div class="form-text text-muted">
+                                <i class="fas fa-info-circle"></i>
+                                Your email address will be used for account recovery and notifications.
+                                Each email can only be associated with one account.
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="bio" class="form-label">Bio</label>
+                            <textarea class="form-control" id="bio" name="bio" rows="4"
+                                    placeholder="Tell us about yourself">{{ user.bio or '' }}</textarea>
+                        </div>
+
+                        <!-- Social Links -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h5 class="mb-0">Social Links</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="fab fa-github me-2"></i>GitHub
+                                    </label>
+                                    <input type="url" class="form-control" name="github"
+                                           value="{{ user.social_links.github if user.social_links else '' }}"
+                                           placeholder="https://github.com/yourusername">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="fab fa-linkedin me-2"></i>LinkedIn
+                                    </label>
+                                    <input type="url" class="form-control" name="linkedin"
+                                           value="{{ user.social_links.linkedin if user.social_links else '' }}"
+                                           placeholder="https://linkedin.com/in/yourusername">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="fab fa-twitter me-2"></i>Twitter
+                                    </label>
+                                    <input type="url" class="form-control" name="twitter"
+                                           value="{{ user.social_links.twitter if user.social_links else '' }}"
+                                           placeholder="https://twitter.com/yourusername">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Profile
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function previewImage(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('avatarPreview').src = e.target.result;
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
+{% endblock %} 

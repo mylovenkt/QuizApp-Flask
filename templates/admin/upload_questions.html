@@ -1,0 +1,45 @@
+{% extends 'layout.html' %}
+
+{% block title %}Upload Questions{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Upload Questions</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" action="{{ url_for('main.upload_questions') }}">
+                        <div class="mb-3">
+                            <label class="form-label">Upload CSV File</label>
+                            <input type="file" name="qFile" class="form-control" accept=".csv" required>
+                            <small class="text-muted">
+                                File must be a CSV with headers: Question, Type, Option1, Option2, Option3, Option4, 
+                                Correct Answer, Category, Difficulty, Explanation
+                            </small>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-upload me-2"></i>Upload
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Sample Format -->
+                <div class="card-footer">
+                    <h5>Sample CSV Format:</h5>
+                    <pre class="bg-light p-3 rounded">
+Question,Type,Option1,Option2,Option3,Option4,Correct Answer,Category,Difficulty,Explanation
+What is 2+2?,multiple_choice,3,4,5,6,B,Math,easy,Basic addition
+Is water wet?,true_false,True,False,,,T,Science,easy,Water is a liquid
+                    </pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

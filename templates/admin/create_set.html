@@ -1,0 +1,394 @@
+{% extends 'layout.html' %}
+{% block title %}Create Quiz Set{% endblock %}
+
+{% block head %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<style>
+.create-quiz-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.main-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    background: linear-gradient(145deg, #34495e, #3498db);
+    color: white;
+}
+
+.main-card .card-header {
+    background: rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    padding: 1.5rem;
+    border-radius: 15px 15px 0 0;
+}
+
+.main-card .card-body {
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 0 0 15px 15px;
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.form-control {
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.15);
+    color: white;
+    backdrop-filter: blur(5px);
+}
+
+.form-control:focus {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.4);
+    color: white;
+    box-shadow: 0 0 0 0.25rem rgba(255,255,255,0.15);
+}
+
+.selection-method {
+    background: rgba(52, 152, 219, 0.3);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(5px);
+}
+
+.form-check-input {
+    width: 1.2em;
+    height: 1.2em;
+    border: 2px solid rgba(255,255,255,0.4);
+}
+
+.form-check-input:checked {
+    background-color: #3498db;
+    border-color: #3498db;
+}
+
+.form-check-label {
+    padding-left: 0.5rem;
+    color: #ffffff;
+}
+
+.select2-container {
+    width: 100% !important;
+}
+
+.select2-selection--multiple {
+    background: rgba(255,255,255,0.15) !important;
+    border: 1px solid rgba(255,255,255,0.2) !important;
+    border-radius: 10px !important;
+    min-height: 150px !important;
+    padding: 8px;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background: rgba(52, 152, 219, 0.4) !important;
+    border: 1px solid rgba(255,255,255,0.2) !important;
+    border-radius: 20px !important;
+    padding: 5px 10px !important;
+    color: white !important;
+    margin: 4px !important;
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: #3498db !important;
+}
+
+.difficulty-section {
+    background: rgba(52, 152, 219, 0.3);
+    border-radius: 15px;
+    padding: 1.5rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(5px);
+}
+
+.btn-action {
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* Custom styles for question options */
+.question-option {
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.question-option:hover {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.3);
+}
+
+.badge {
+    padding: 0.5em 1em;
+    border-radius: 20px;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.badge-easy { 
+    background-color: #2ecc71 !important;
+    color: white;
+}
+
+.badge-medium { 
+    background-color: #f39c12 !important;
+    color: white;
+}
+
+.badge-hard { 
+    background-color: #e74c3c !important;
+    color: white;
+}
+
+/* Input group styling */
+.input-group-text {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+}
+
+/* Small text styling */
+small {
+    color: rgba(255,255,255,0.7);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.4);
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="create-quiz-container py-4">
+    <div class="card main-card">
+        <div class="card-header">
+            <h3 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Create New Quiz Set</h3>
+        </div>
+        <div class="card-body">
+            <form method="post" id="createSetForm">
+                <!-- Basic Info -->
+                <div class="mb-4">
+                    <label for="name" class="form-label">Set Name</label>
+                    <input type="text" class="form-control" id="name" name="name" required
+                           placeholder="Enter a descriptive name for your quiz set">
+                </div>
+
+                <div class="mb-4">
+                    <label for="time_limit" class="form-label">Time Limit (minutes)</label>
+                    <input type="number" class="form-control" id="time_limit" name="time_limit" 
+                           min="1" value="30" required>
+                </div>
+
+                <!-- Question Selection Method -->
+                <div class="selection-method">
+                    <label class="form-label mb-3">Question Selection Method</label>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="selection_method" 
+                               id="manualSelection" value="manual" checked>
+                        <label class="form-check-label" for="manualSelection">
+                            <i class="fas fa-hand-pointer me-2"></i>Manual Selection
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="selection_method" 
+                               id="autoSelection" value="auto">
+                        <label class="form-check-label" for="autoSelection">
+                            <i class="fas fa-magic me-2"></i>Automatic Selection
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Manual Selection -->
+                <div id="manualSelectionSection">
+                    <div class="mb-4">
+                        <label for="questions" class="form-label">Select Questions</label>
+                        <select class="form-control" id="questions" name="questions[]" 
+                                multiple="multiple">
+                            {% for question in questions %}
+                            <option value="{{ question.id }}" 
+                                    data-difficulty="{{ question.difficulty }}"
+                                    data-category="{{ question.category.name }}">
+                                {{ question.question|truncate(100) }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Auto Selection -->
+                <div id="autoSelectionSection" style="display: none;">
+                    <div class="difficulty-section">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="total_questions" class="form-label">Total Questions</label>
+                                <input type="number" class="form-control" id="total_questions" 
+                                       name="total_questions" min="1" value="10">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="category" class="form-label">Category</label>
+                                <select class="form-control" id="category" name="category">
+                                    <option value="">All Categories</option>
+                                    {% for category in categories %}
+                                    <option value="{{ category.id }}">{{ category.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <label class="form-label">Difficulty Distribution</label>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-smile text-success"></i></span>
+                                        <input type="number" class="form-control difficulty-percent" 
+                                               name="easy_percent" value="30" min="0" max="100">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <small class="text-light">Easy</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-meh text-warning"></i></span>
+                                        <input type="number" class="form-control difficulty-percent" 
+                                               name="medium_percent" value="40" min="0" max="100">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <small class="text-light">Medium</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-frown text-danger"></i></span>
+                                        <input type="number" class="form-control difficulty-percent" 
+                                               name="hard_percent" value="30" min="0" max="100">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <small class="text-light">Hard</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{{ url_for('main.admin') }}" class="btn btn-outline-light btn-action">
+                        <i class="fas fa-arrow-left me-2"></i>Back
+                    </a>
+                    <button type="submit" class="btn btn-light btn-action">
+                        <i class="fas fa-save me-2"></i>Create Quiz Set
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Initialize Select2 with custom formatting
+    $('#questions').select2({
+        placeholder: 'Search and select questions...',
+        allowClear: true,
+        templateResult: formatQuestion,
+        templateSelection: formatQuestion
+    });
+
+    // Handle selection method change
+    $('input[name="selection_method"]').change(function() {
+        if (this.value === 'manual') {
+            $('#manualSelectionSection').slideDown();
+            $('#autoSelectionSection').slideUp();
+        } else {
+            $('#manualSelectionSection').slideUp();
+            $('#autoSelectionSection').slideDown();
+        }
+    });
+
+    // Validate difficulty percentages
+    $('.difficulty-percent').on('input', function() {
+        validateDifficultyTotal();
+    });
+});
+
+function formatQuestion(question) {
+    if (!question.id) return question.text;
+    
+    const $question = $(question.element);
+    const difficulty = $question.data('difficulty');
+    const category = $question.data('category');
+    
+    return $(`
+        <div class="question-option">
+            <div class="mb-1">${question.text}</div>
+            <div>
+                <span class="badge badge-${difficulty}">${difficulty}</span>
+                <span class="badge bg-primary ms-2">${category}</span>
+            </div>
+        </div>
+    `);
+}
+
+function validateDifficultyTotal() {
+    let total = 0;
+    $('.difficulty-percent').each(function() {
+        total += parseInt($(this).val()) || 0;
+    });
+    
+    $('.difficulty-percent').toggleClass('is-invalid', total !== 100);
+    return total === 100;
+}
+
+// Form validation
+$('#createSetForm').submit(function(e) {
+    if ($('input[name="selection_method"]:checked').val() === 'manual') {
+        if ($('#questions').val().length === 0) {
+            e.preventDefault();
+            alert('Please select at least one question');
+            return false;
+        }
+    } else if (!validateDifficultyTotal()) {
+        e.preventDefault();
+        alert('Difficulty distribution must total 100%');
+        return false;
+    }
+});
+</script>
+{% endblock %}

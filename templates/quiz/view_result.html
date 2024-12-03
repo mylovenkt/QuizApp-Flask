@@ -1,0 +1,90 @@
+{% extends 'layout.html' %}
+
+{% block title %}Quiz Result{% endblock %}
+
+{% block body %}
+<div class="card">
+    <div class="card-header">
+        <h2>Quiz Result: {{ result.set_name }}</h2>
+    </div>
+    <div class="card-body">
+        <!-- Score Section -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h3 class="text-primary">Score</h3>
+                <h1 class="display-4">{{ "%.1f"|format(result.score) }}%</h1>
+            </div>
+            <div class="col-md-6">
+                <h3 class="text-primary">Time Taken</h3>
+                <h1 class="display-4">{{ result.time_taken }}</h1>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Correct</h5>
+                        <h2>{{ result.correct }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-danger text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Incorrect</h5>
+                        <h2>{{ result.incorrect }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Not Attempted</h5>
+                        <h2>{{ result.not_attempt }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Question Review -->
+        <h3 class="mb-4">Question Review</h3>
+        {% for question in questions %}
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Question {{ loop.index }}</h5>
+                {% set answer = answers.get(question.id|string, {}) %}
+                {% if answer.get('is_correct') %}
+                <span class="badge bg-success">Correct</span>
+                {% elif answer.get('user_answer') %}
+                <span class="badge bg-danger">Incorrect</span>
+                {% else %}
+                <span class="badge bg-warning">Not Attempted</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="card-text">{{ question.question }}</p>
+                
+                <!-- Options -->
+                <div class="options mt-3">
+                    {% for option in [('A', question.option1), ('B', question.option2), ('C', question.option3), ('D', question.option4)] %}
+                    {% if option[1] %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" disabled
+                               {% if answer.get('user_answer') == option[0] %}checked{% endif %}
+                               {% if question.correct_option == option[0] %}data-correct="true"{% endif %}>
+                        <label class="form-check-label {% if question.correct_option == option[0] %}text-success{% endif %}">
+                            {{ option[0] }}. {{ option[1] }}
+                            {% if question.correct_option == option[0] %}<i class="fas fa-check text-success"></i>{% endif %}
+                        </label>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

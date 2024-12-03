@@ -1,0 +1,358 @@
+{% extends 'layout.html' %}
+
+{% block title %}Rich Text Question Editor{% endblock %}
+
+{% block styles %}
+<style>
+#preview {
+        min-height: 200px;
+        background: #fff;
+        padding: 15px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+}
+    
+.preview-card {
+        background: #f8f9fa;
+}
+    
+.option {
+        background: #fff;
+}
+    
+.bg-success-light {
+        background-color: rgba(40, 167, 69, 0.1) !important;
+}
+.tox-tinymce {
+    border-radius: 0.25rem;
+}
+.preview-card {
+    max-height: 400px;
+    overflow-y: auto;
+}
+.tag-input {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+}
+.tag {
+    background: #e9ecef;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.tag button {
+    border: none;
+    background: none;
+    padding: 0;
+    color: #dc3545;
+    cursor: pointer;
+}
+.bg-success-light {
+    background-color: rgba(40, 167, 69, 0.1);
+}
+.preview-card {
+    max-height: 400px;
+    overflow-y: auto;
+}
+.question-content {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+}
+.option {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s;
+}
+.option:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Create Question</h5>
+                </div>
+                <div class="card-body">
+                    <form id="questionForm" method="POST">
+                        <!-- Question Content -->
+                        <div class="mb-3">
+                            <label class="form-label">Question Content</label>
+                            <textarea id="questionContent" name="content"></textarea>
+                        </div>
+
+                        <!-- Answer Options -->
+                        <div class="answer-options mb-3">
+                            <label class="form-label">Answer Options</label>
+                            
+                            <!-- Option A -->
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">A</span>
+                                <input type="text" class="form-control" name="option1" required>
+                                <div class="input-group-text">
+                                    <input type="radio" name="correct_option" value="A" required>
+                                </div>
+                            </div>
+
+                            <!-- Option B -->
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">B</span>
+                                <input type="text" class="form-control" name="option2" required>
+                                <div class="input-group-text">
+                                    <input type="radio" name="correct_option" value="B" required>
+                                </div>
+                            </div>
+
+                            <!-- Option C -->
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">C</span>
+                                <input type="text" class="form-control" name="option3" required>
+                                <div class="input-group-text">
+                                    <input type="radio" name="correct_option" value="C" required>
+                                </div>
+                            </div>
+
+                            <!-- Option D -->
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">D</span>
+                                <input type="text" class="form-control" name="option4" required>
+                                <div class="input-group-text">
+                                    <input type="radio" name="correct_option" value="D" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Explanation -->
+                        <div class="mb-3">
+                            <label class="form-label">Explanation</label>
+                            <textarea id="explanation" name="explanation"></textarea>
+                        </div>
+
+                        <!-- Tags -->
+                        <div class="mb-3">
+                            <label class="form-label">Tags</label>
+                            <div class="tag-input" id="tagContainer">
+                                <input type="text" class="form-control form-control-sm" 
+                                       id="tagInput" placeholder="Add tag and press Enter">
+                            </div>
+                        </div>
+
+                        <!-- Media -->
+                        <div class="mb-3">
+                            <label class="form-label">Media Files</label>
+                            <input type="file" class="form-control" id="mediaFiles" multiple 
+                                   accept="image/*,video/*">
+                            <div id="mediaPreview" class="mt-2 d-flex flex-wrap gap-2"></div>
+                        </div>
+
+                        <!-- Metadata -->
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Category</label>
+                                    <select class="form-select" name="category_id" required>
+                                        {% for category in categories %}
+                                        <option value="{{ category.id }}">{{ category.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Difficulty Level</label>
+                                    <select class="form-select" name="difficulty" required>
+                                        <option value="easy">Easy</option>
+                                        <option value="medium" selected>Medium</option>
+                                        <option value="hard">Hard</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Save Question</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Preview</h5>
+                </div>
+                <div class="card-body preview-card" id="preview">
+                    <div id="questionPreview"></div>
+                    <hr>
+                    <div id="optionsPreview"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js"></script>
+<script>
+// Initialize TinyMCE for both editors
+tinymce.init({
+    selector: '#questionContent',
+    height: 200,
+    menubar: false,
+    plugins: 'lists link image table code',
+    toolbar: 'undo redo | formatselect | bold italic | alignleft aligncenter alignright | bullist numlist | link image | code',
+    setup: function(editor) {
+        editor.on('init', function() {
+            // Initial preview
+            updatePreview();
+        });
+        editor.on('Change', function() {
+            updatePreview();
+        });
+    }
+});
+
+tinymce.init({
+    selector: '#explanation',
+    height: 150,
+    menubar: false,
+    plugins: 'lists link code',
+    toolbar: 'undo redo | bold italic | bullist numlist | code'
+});
+
+// Live Preview Function
+function updatePreview() {
+    try {
+        const editor = tinymce.get('questionContent');
+        if (!editor) {
+            console.log('Editor not ready');
+            return;
+        }
+
+        const questionContent = editor.getContent();
+        const options = {
+            A: document.querySelector('input[name="option1"]')?.value || '',
+            B: document.querySelector('input[name="option2"]')?.value || '',
+            C: document.querySelector('input[name="option3"]')?.value || '',
+            D: document.querySelector('input[name="option4"]')?.value || ''
+        };
+        const correctOption = document.querySelector('input[name="correct_option"]:checked')?.value;
+
+        let previewHTML = `
+            <div class="question-content mb-3">
+                ${questionContent}
+            </div>
+            <div class="options">
+        `;
+
+        for (let [letter, text] of Object.entries(options)) {
+            const isCorrect = letter === correctOption;
+            previewHTML += `
+                <div class="option mb-2 p-2 rounded ${isCorrect ? 'bg-success-light' : ''}" 
+                     style="border: 1px solid #dee2e6">
+                    ${letter}. ${text}
+                    ${isCorrect ? '<span class="badge bg-success ms-2">Correct</span>' : ''}
+                </div>
+            `;
+        }
+
+        previewHTML += '</div>';
+        document.getElementById('preview').innerHTML = previewHTML;
+        console.log('Preview updated');
+    } catch (error) {
+        console.error('Error updating preview:', error);
+    }
+}
+
+// Add event listeners for all form inputs
+document.addEventListener('DOMContentLoaded', function() {
+    // Listen for changes in options and radio buttons
+    document.querySelectorAll('input[type="text"], input[type="radio"]').forEach(input => {
+        input.addEventListener('input', updatePreview);
+        input.addEventListener('change', updatePreview);
+    });
+});
+
+// Handle form submission
+document.getElementById('questionForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    // Add tags
+    const tags = Array.from(document.querySelectorAll('.tag'))
+        .map(tag => tag.textContent.trim());
+    formData.append('tags', JSON.stringify(tags));
+    
+    try {
+        const response = await fetch("{{ url_for('main.create_rich_text_question') }}", {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            window.location.href = data.redirect;
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error saving question: ' + error);
+    }
+});
+
+// Handle tags
+const tagInput = document.getElementById('tagInput');
+const tagContainer = document.getElementById('tagContainer');
+let tags = [];
+
+tagInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const tag = this.value.trim();
+        if (tag && !tags.includes(tag)) {
+            tags.push(tag);
+            renderTags();
+            this.value = '';
+        }
+    }
+});
+
+function renderTags() {
+    const tagElements = tags.map(tag => `
+        <div class="tag">
+            ${tag}
+            <button type="button" onclick="removeTag('${tag}')">×</button>
+        </div>
+    `).join('');
+    
+    tagContainer.innerHTML = tagElements + `
+        <input type="text" class="form-control form-control-sm" 
+               id="tagInput" placeholder="Add tag and press Enter">
+    `;
+}
+
+function removeTag(tag) {
+    tags = tags.filter(t => t !== tag);
+    renderTags();
+}
+
+// Add this to debug
+console.log('Scripts loaded');
+document.addEventListener('DOMContentLoaded', () => console.log('DOM loaded'));
+</script>
+{% endblock %} 

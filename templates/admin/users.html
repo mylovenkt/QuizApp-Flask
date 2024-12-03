@@ -1,0 +1,111 @@
+{% extends 'layout.html' %}
+{% block title %}Manage Users{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1 class="text-center mb-4">Manage Users</h1>
+
+    <!-- Add/Edit User Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0" id="formTitle">Add New User</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" id="userForm">
+                <input type="hidden" name="user_id" id="userId">
+                <div class="mb-3">
+                    <label for="name" class="form-label">Username</label>
+                    <input type="text" class="form-control" id="name" name="name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" name="password">
+                    <small class="text-muted">Leave blank to keep existing password when editing</small>
+                </div>
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="isAdmin" name="is_admin">
+                    <label class="form-check-label" for="isAdmin">Admin User</label>
+                </div>
+                <button type="submit" class="btn btn-primary" id="submitBtn">Add User</button>
+                <button type="button" class="btn btn-secondary" id="cancelBtn" style="display: none;" onclick="resetForm()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Users List -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Users</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th>Created At</th>
+                            <th>Quiz Sets</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.name }}</td>
+                            <td>{{ "Admin" if user.is_admin else "User" }}</td>
+                            <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ user.question_sets|length }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick='editUser({
+                                    "id": {{ user.id }},
+                                    "name": "{{ user.name }}",
+                                    "is_admin": {{ "true" if user.is_admin else "false" }}
+                                })'>Edit</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteUser({{ user.id }})">Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function editUser(user) {
+    document.getElementById('userId').value = user.id;
+    document.getElementById('name').value = user.name;
+    document.getElementById('isAdmin').checked = user.is_admin;
+    document.getElementById('formTitle').textContent = 'Edit User';
+    document.getElementById('submitBtn').textContent = 'Update User';
+    document.getElementById('cancelBtn').style.display = 'inline-block';
+    document.getElementById('password').required = false;
+}
+
+function resetForm() {
+    document.getElementById('userForm').reset();
+    document.getElementById('userId').value = '';
+    document.getElementById('formTitle').textContent = 'Add New User';
+    document.getElementById('submitBtn').textContent = 'Add User';
+    document.getElementById('cancelBtn').style.display = 'none';
+    document.getElementById('password').required = true;
+}
+
+function deleteUser(userId) {
+    if (confirm('Are you sure you want to delete this user?')) {
+        fetch(`/admin/users/${userId}`, {
+            method: 'DELETE',
+        }).then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                window.location.reload();
+            }
+        });
+    }
+}
+</script>
+{% endblock %} 

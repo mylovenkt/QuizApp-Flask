@@ -1,0 +1,222 @@
+{% extends 'layout.html' %}
+{% block title %}Quiz Sets{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Quiz Sets</h1>
+        {% if request.args.get('action') == 'distribute' %}
+            <h4 class="text-muted">Select a quiz set to distribute</h4>
+        {% else %}
+            <a href="{{ url_for('main.create_set') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create New Set
+            </a>
+        {% endif %}
+    </div>
+
+    <!-- Filter Section -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="filterForm" class="row g-3">
+                <input type="hidden" name="action" value="{{ request.args.get('action', '') }}">
+                <div class="col-md-4">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" name="category">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}" {% if request.args.get('category')|int == category.id %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Sort By</label>
+                    <select class="form-select" name="sort">
+                        <option value="created_desc" {% if request.args.get('sort') == 'created_desc' %}selected{% endif %}>Newest First</option>
+                        <option value="created_asc" {% if request.args.get('sort') == 'created_asc' %}selected{% endif %}>Oldest First</option>
+                        <option value="name" {% if request.args.get('sort') == 'name' %}selected{% endif %}>Name</option>
+                        <option value="questions" {% if request.args.get('sort') == 'questions' %}selected{% endif %}>Question Count</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sets List -->
+    <div class="row">
+        {% for set in sets %}
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ set.name }}</h5>
+                    <div>
+                        <span class="badge bg-primary">{{ set.questions|length }} Questions</span>
+                        <span class="badge bg-info">{{ set.users.count() }} Users Assigned</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Set Statistics -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <small class="text-muted">Time Limit:</small>
+                            <p class="mb-0">{{ set.time_limit // 60 }}:{{ '%02d'|format(set.time_limit % 60) }}</p>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Created:</small>
+                            <p class="mb-0">{{ set.created_at.strftime('%Y-%m-%d') }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Category Distribution -->
+                    <div class="mb-3">
+                        <small class="text-muted">Categories:</small>
+                        <div class="d-flex flex-wrap gap-1 mt-1">
+                            {% set categories = {} %}
+                            {% for question in set.questions %}
+                                {% if question.category %}
+                                    {% if question.category.name in categories %}
+                                        {% set _ = categories.update({question.category.name: categories[question.category.name] + 1}) %}
+                                    {% else %}
+                                        {% set _ = categories.update({question.category.name: 1}) %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                            {% for category, count in categories.items() %}
+                            <span class="badge bg-info">{{ category }} ({{ count }})</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Difficulty Distribution -->
+                    <div class="mb-3">
+                        <small class="text-muted">Difficulty Distribution:</small>
+                        <div class="progress mt-1" style="height: 20px;">
+                            {% set difficulties = {'easy': 0, 'medium': 0, 'hard': 0} %}
+                            {% for question in set.questions %}
+                                {% set _ = difficulties.update({question.difficulty: difficulties[question.difficulty] + 1}) %}
+                            {% endfor %}
+                            {% set total = set.questions|length %}
+                            {% if total > 0 %}
+                                <div class="progress-bar bg-success" style="width: {{ (difficulties.easy / total * 100)|round }}%">
+                                    Easy ({{ difficulties.easy }})
+                                </div>
+                                <div class="progress-bar bg-warning" style="width: {{ (difficulties.medium / total * 100)|round }}%">
+                                    Medium ({{ difficulties.medium }})
+                                </div>
+                                <div class="progress-bar bg-danger" style="width: {{ (difficulties.hard / total * 100)|round }}%">
+                                    Hard ({{ difficulties.hard }})
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Assigned Users -->
+                    <div class="mb-3">
+                        <small class="text-muted">Assigned to {{ set.users.count() }} user{{ 's' if set.users.count() != 1 else '' }}</small>
+                    </div>
+                </div>
+                <!-- Actions -->
+                <div class="card-footer">
+                    <div class="btn-group w-100">
+                        {% if request.args.get('action') == 'distribute' %}
+                            <button class="btn btn-primary w-100" onclick="distributeSet({{ set.id }})">
+                                <i class="fas fa-share"></i> Distribute This Set
+                            </button>
+                        {% else %}
+                        <button class="btn btn-outline-primary" onclick="viewSet({{ set.id }})">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                        <button class="btn btn-outline-warning" onclick="editSet({{ set.id }})">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="distributeSet({{ set.id }})">
+                            <i class="fas fa-share"></i> Distribute
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="deleteSet({{ set.id }})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                No quiz sets found. <a href="{{ url_for('main.admin_create_set') }}">Create one now</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if pagination %}
+    <nav aria-label="Quiz sets navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {{ pagination.links }}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<!-- View Set Modal -->
+<div class="modal fade" id="viewSetModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Quiz Set Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="setDetails">
+                <!-- Content will be loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function viewSet(setId) {
+    fetch(`/admin/sets/${setId}/view`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('setDetails').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('viewSetModal')).show();
+        });
+}
+
+function editSet(setId) {
+    window.location.href = `/admin/sets/${setId}/edit`;
+}
+
+function distributeSet(setId) {
+    window.location.href = `/admin/sets/${setId}/distribute`;
+}
+
+function deleteSet(setId) {
+    if (confirm('Are you sure you want to delete this quiz set? This action cannot be undone.')) {
+        fetch(`/admin/sets/${setId}`, {
+            method: 'DELETE',
+        }).then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.error);
+            }
+        });
+    }
+}
+
+// Filter form handling
+document.getElementById('filterForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const params = new URLSearchParams(formData);
+    window.location.href = `{{ url_for('main.admin_show_sets') }}?${params.toString()}`;
+});
+</script>
+{% endblock %}

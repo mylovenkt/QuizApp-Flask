@@ -1,0 +1,505 @@
+{% extends 'layout.html' %}
+
+{% block title %}Chat Room{% endblock %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<style>
+.chat-container {
+    display: flex;
+    height: calc(100vh - 100px);
+    background: #2b2d31;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.chat-messages {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #313338;
+    position: relative;
+}
+
+.messages-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.message {
+    display: flex;
+    align-items: start;
+    margin-bottom: 1rem;
+    animation: fadeIn 0.3s ease;
+}
+
+.message-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 12px;
+    object-fit: cover;
+}
+
+.message-content {
+    flex: 1;
+    background: #2b2d31;
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.message-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.message-author {
+    font-weight: 500;
+    color: #fff;
+    margin-right: 8px;
+}
+
+.message-time {
+    font-size: 0.8em;
+    color: #a3a3a3;
+}
+
+.message-text {
+    color: #dcddde;
+    word-break: break-word;
+}
+
+.message-input-container {
+    display: flex;
+    gap: 8px;
+    padding: 16px;
+    background: #313338;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.file-upload-wrapper {
+    position: relative;
+}
+
+.file-upload-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #2b2d31;
+    border: none;
+    border-radius: 50%;
+    color: #b9bbbe;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.file-upload-btn:hover {
+    background: #383a40;
+    color: #fff;
+}
+
+#message-input {
+    flex: 1;
+    background: #383a40;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    color: #dcddde;
+}
+
+#message-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.5);
+}
+
+#send-button {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #5865f2;
+    border: none;
+    border-radius: 50%;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#send-button:hover {
+    background: #4752c4;
+}
+
+.participants-sidebar {
+    width: 240px;
+    background: #2b2d31;
+    border-left: 1px solid rgba(255,255,255,0.1);
+    padding: 20px;
+}
+
+.participants-list {
+    margin-top: 12px;
+}
+
+.participant {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    transition: background 0.2s;
+}
+
+.participant:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.participant-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 10px;
+    object-fit: cover;
+}
+
+.online-indicator {
+    width: 8px;
+    height: 8px;
+    background: #3ba55c;
+    border-radius: 50%;
+    margin-left: auto;
+}
+
+.message-attachment {
+    margin-top: 8px;
+    padding: 8px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 4px;
+}
+
+.message-attachment img {
+    max-width: 300px;
+    max-height: 300px;
+    border-radius: 4px;
+}
+
+.message-attachment a {
+    color: #00b0f4;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.message-attachment a:hover {
+    text-decoration: underline;
+}
+
+.upload-progress {
+    position: absolute;
+    bottom: 70px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: rgba(255,255,255,0.1);
+    display: none;
+}
+
+.progress-bar {
+    height: 100%;
+    background: #5865f2;
+    width: 0;
+    transition: width 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.delete-message {
+    opacity: 0;
+    transition: opacity 0.2s;
+    padding: 0;
+    font-size: 0.8em;
+}
+
+.message:hover .delete-message {
+    opacity: 1;
+}
+
+.message-deleted {
+    opacity: 0.5;
+    font-style: italic;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid p-4">
+    <div class="chat-container">
+        <!-- Messages Area -->
+        <div class="chat-messages">
+            <div class="messages-list" id="messages">
+                {% for message in messages %}
+                <div class="message" data-message-id="{{ message.id }}">
+                    <img src="{{ message.user.get_avatar_url }}" 
+                         class="message-avatar" 
+                         alt="{{ message.user.name }}'s avatar">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="message-author">{{ message.user.name }}</span>
+                            <span class="message-time">{{ utc_to_gmt7(message.created_at).strftime('%H:%M') }}</span>
+                            {% if current_user.is_admin or message.user_id == current_user.id %}
+                            <button class="btn btn-sm btn-link text-danger delete-message" 
+                                    onclick="deleteMessage('{{ message.id }}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                        <div class="message-text">{{ message.content }}</div>
+                        {% if message.file_url %}
+                            <div class="message-attachment">
+                                {% if message.file_url.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')) %}
+                                    <img src="{{ url_for('static', filename='uploads/chat/' + message.file_url) }}" alt="Attachment">
+                                {% else %}
+                                    <a href="{{ url_for('static', filename='uploads/chat/' + message.file_url) }}" target="_blank">
+                                        <i class="fas fa-file"></i> {{ message.file_url }}
+                                    </a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="upload-progress">
+                <div class="progress-bar"></div>
+            </div>
+            
+            <!-- Message Input -->
+            <div class="message-input-container">
+                <div class="file-upload-wrapper">
+                    <input type="file" id="file-upload" style="display: none" 
+                           accept=".png,.jpg,.jpeg,.gif,.pdf,.doc,.docx,.txt">
+                    <button class="file-upload-btn" onclick="document.getElementById('file-upload').click()">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                </div>
+                <input type="text" 
+                       id="message-input" 
+                       class="form-control" 
+                       placeholder="Type your message...">
+                <button id="send-button">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Participants Sidebar -->
+        <div class="participants-sidebar">
+            <h5 class="text-white">Participants</h5>
+            <div id="participants" class="participants-list">
+                {% for participant in participants %}
+                <div class="participant">
+                    <img src="{{ participant.get_avatar_url }}" 
+                         class="participant-avatar" 
+                         alt="{{ participant.name }}'s avatar">
+                    <span class="text-white">{{ participant.name }}</span>
+                    {% if participant.is_online %}
+                    <span class="online-indicator"></span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Define deleteMessage at the global scope
+function deleteMessage(messageId) {
+    if (!confirm('Are you sure you want to delete this message?')) {
+        return;
+    }
+    
+    fetch(`/chat/message/${messageId}/delete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            throw new Error(data.error || 'Failed to delete message');
+        }
+        // Remove message element if deletion was successful
+        const messageElement = document.querySelector(`.message[data-message-id="${messageId}"]`);
+        if (messageElement) {
+            messageElement.remove();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting message: ' + error.message);
+    });
+}
+
+// Then your existing DOMContentLoaded code
+document.addEventListener('DOMContentLoaded', function() {
+    const socket = io();
+    const messagesList = document.getElementById('messages');
+    const messageInput = document.getElementById('message-input');
+    const fileUpload = document.getElementById('file-upload');
+    const roomId = '{{ room_id }}';
+    
+    // Scroll to bottom on load
+    scrollToBottom();
+
+    // Join room on connect
+    socket.on('connect', () => {
+        console.log('Connected to WebSocket');
+        socket.emit('join', { room: roomId });
+    });
+
+    // Handle file upload
+    fileUpload.addEventListener('change', function() {
+        const file = this.files[0];
+        if (!file) return;
+
+        // Check file size (5MB limit)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('File size must be less than 5MB');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const progressBar = document.querySelector('.progress-bar');
+        const progressContainer = document.querySelector('.upload-progress');
+        progressContainer.style.display = 'block';
+
+        fetch('/chat/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Send message with file
+                socket.emit('message', {
+                    message: `Shared a file: ${file.name}`,
+                    room: roomId,
+                    file_url: data.filename
+                });
+            } else {
+                alert('Error uploading file: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error uploading file');
+        })
+        .finally(() => {
+            progressContainer.style.display = 'none';
+            progressBar.style.width = '0%';
+            fileUpload.value = ''; // Clear file input
+        });
+    });
+
+    // Handle incoming messages
+    socket.on('message', function(data) {
+        console.log('Received message:', data);
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message';
+        messageDiv.setAttribute('data-message-id', data.id);
+        
+        // Check if current user can delete this message
+        const canDelete = data.author_id === {{ current_user.id }} || {{ current_user.is_admin|tojson }};
+        const deleteButton = canDelete ? `
+            <button class="btn btn-sm btn-link text-danger delete-message" 
+                    onclick="deleteMessage('${data.id}')">
+                <i class="fas fa-trash"></i>
+            </button>
+        ` : '';
+        
+        let attachmentHtml = '';
+        if (data.file_url) {
+            const fileUrl = `/static/uploads/chat/${data.file_url}`;
+            if (data.file_url.toLowerCase().match(/\.(jpg|jpeg|png|gif)$/)) {
+                attachmentHtml = `
+                    <div class="message-attachment">
+                        <img src="${fileUrl}" alt="Attachment">
+                    </div>`;
+            } else {
+                attachmentHtml = `
+                    <div class="message-attachment">
+                        <a href="${fileUrl}" target="_blank">
+                            <i class="fas fa-file"></i> ${data.file_url}
+                        </a>
+                    </div>`;
+            }
+        }
+
+        messageDiv.innerHTML = `
+            <img src="${data.avatar_url}" class="message-avatar" alt="${data.author}'s avatar">
+            <div class="message-content">
+                <div class="message-header">
+                    <span class="message-author">${data.author}</span>
+                    <span class="message-time">${data.created_at}</span>
+                    ${deleteButton}
+                </div>
+                <div class="message-text">${data.message}</div>
+                ${attachmentHtml}
+            </div>
+        `;
+        messagesList.appendChild(messageDiv);
+        scrollToBottom();
+    });
+
+    // Function to scroll to bottom
+    function scrollToBottom() {
+        messagesList.scrollTop = messagesList.scrollHeight;
+    }
+
+    // Send message function
+    function sendMessage() {
+        const message = messageInput.value.trim();
+        if (message) {
+            console.log('Sending message:', message);
+            socket.emit('message', {
+                message: message,
+                room: roomId
+            });
+            messageInput.value = '';
+        }
+    }
+
+    // Send message on button click
+    document.getElementById('send-button').addEventListener('click', sendMessage);
+
+    // Send message on Enter key
+    messageInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // Add socket event handler for message deletion
+    socket.on('message_deleted', function(data) {
+        const messageElement = document.querySelector(`.message[data-message-id="${data.message_id}"]`);
+        if (messageElement) {
+            messageElement.remove();
+        }
+    });
+});
+</script>
+{% endblock %} 
