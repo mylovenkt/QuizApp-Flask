@@ -25,20 +25,38 @@ wheels/
 venv/
 ENV/
 .env
+.venv
+env/
+venv/
+ENV/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+*.swn
+.project
+.pydevproject
+.settings/
+*.sublime-workspace
+*.sublime-project
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
+*.sqlite-journal
 
-# Logs
+# Logs and debugging
 *.log
+logs/
+debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+debug.log
+*.stackdump
 
 # OS generated files
 .DS_Store
@@ -48,10 +66,48 @@ ENV/
 .Trashes
 ehthumbs.db
 Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
 
 # Flask
 instance/
 .webassets-cache
+flask_session/
 
 # Local development configuration
-config.py 
+config.py
+.env.local
+.env.*.local
+*.local.py
+
+# Coverage reports
+htmlcov/
+.coverage
+coverage.xml
+.coverage.*
+.pytest_cache/
+nosetests.xml
+coverage/
+
+# Migration files
+migrations/versions/
+migrations/script.py.mako
+migrations/README
+migrations/env.py
+migrations/alembic.ini
+
+# Media and uploads
+uploads/
+media/
+static/uploads/
+user_uploads/
+temp/
+
+# Backup files
+*.bak
+*.tmp
+*.temp
+*~
+*.old
+*.orig
+*.rej
