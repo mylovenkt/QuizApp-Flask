@@ -1344,7 +1344,7 @@ html, body {
                                     <button class="emoji-option" data-emoji="😂">😃</button>
                                     <button class="emoji-option" data-emoji="😄">😄</button>
                                     <button class="emoji-option" data-emoji="😁">😁</button>
-                                    <button class="emoji-option" data-emoji="😅">😅</button>
+                                    <button class="emoji-option" data-emoji="��">😅</button>
                                     <button class="emoji-option" data-emoji="😂">😂</button>
                                     <button class="emoji-option" data-emoji="🤣">🤣</button>
                                     <button class="emoji-option" data-emoji="😊">😊</button>
@@ -1352,7 +1352,7 @@ html, body {
                                     <button class="emoji-option" data-emoji="😎">😍</button>
                                     <button class="emoji-option" data-emoji="🤩">🤩</button>
                                     <button class="emoji-option" data-emoji="😘">😘</button>
-                                    <button class="emoji-option" data-emoji="💕">���</button>
+                                    <button class="emoji-option" data-emoji="💕">💕</button>
                                     <button class="emoji-option" data-emoji="💖">💖</button>
                                     <button class="emoji-option" data-emoji="😎">😎</button>
                                     <button class="emoji-option" data-emoji="🤠">🤠</button>
@@ -1557,10 +1557,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Format the timestamp
-        const timestamp = new Date(data.created_at).toLocaleTimeString('en-US', {
+        const timestamp = new Date(data.created_at).toLocaleString('en-US', {
             hour: '2-digit',
             minute: '2-digit',
-            hour12: false
+            hour12: false,
+            timeZone: 'Asia/Bangkok'  // GMT+7
         });
 
         // Create message HTML with proper escaping
@@ -1634,7 +1635,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <button class="emoji-option" data-emoji="🤪">🤪</button>
                                 <button class="emoji-option" data-emoji="😜">😜</button>
                                 <button class="emoji-option" data-emoji="🤓">🤓</button>
-                                <button class="emoji-option" data-emoji="���">🥳</button>
+                                <button class="emoji-option" data-emoji="🥳">🥳</button>
                                 <button class="emoji-option" data-emoji="🤔">🤔</button>
                                 <button class="emoji-option" data-emoji="🤨">🤨</button>
                                 <button class="emoji-option" data-emoji="😐">😐</button>

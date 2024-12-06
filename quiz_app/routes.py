@@ -63,6 +63,7 @@ from .models import User
 import logging
 import requests
 from quiz_app.models import ChatMessage, MessageReaction, User, RoomParticipants
+from pytz import timezone
 
 main = Blueprint("main", __name__)
 
@@ -124,6 +125,12 @@ def format_time(timestamp):
     
     # Otherwise show full date
     return local_time.strftime('%Y-%m-%d %H:%M')
+
+@main.app_template_filter('format_datetime')
+def format_datetime(value, format='%H:%M'):
+    if value is None:
+        return ""
+    return value.astimezone(timezone('Asia/Bangkok')).strftime(format)
 
 def admin_required(f):
     @wraps(f)
@@ -1614,9 +1621,16 @@ def chat_room(room_id):
     online_count = sum(1 for p in participants if p.is_online)
     offline_count = len(participants) - online_count
 
+    # Get messages and convert to GMT+7
+    messages = ChatMessage.query.filter_by(room_id=room.id).order_by(ChatMessage.created_at).all()
+    for message in messages:
+        if message.created_at.tzinfo is None:
+            message.created_at = timezone('UTC').localize(message.created_at)
+        message.created_at = message.created_at.astimezone(timezone('Asia/Bangkok'))
+
     return render_template('chat/room.html',
         room=room,
-        messages=ChatMessage.query.filter_by(room_id=room.id).order_by(ChatMessage.created_at).all(),
+        messages=messages,
         participants=participants,
         online_count=online_count,
         offline_count=offline_count
@@ -1921,6 +1935,11 @@ def handle_message(data):
         if not room or (not message_text and not file_url):
             return
             
+        # Create message with GMT+7 timestamp
+        bangkok_tz = timezone('Asia/Bangkok')
+        created_at = datetime.utcnow()
+        created_at = timezone('UTC').localize(created_at).astimezone(bangkok_tz)
+            
         chat_message = ChatMessage(
             content=message_text,
             file_url=file_url,
@@ -1928,7 +1947,7 @@ def handle_message(data):
             file_type=file_type,
             user_id=current_user.id,
             room_id=room,
-            created_at=datetime.utcnow()
+            created_at=created_at
         )
         
         db.session.add(chat_message)

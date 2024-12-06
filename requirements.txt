@@ -21,3 +21,6 @@ python-magic-bin==0.4.14; platform_system == "Windows"
 
 # Environment Variables
 python-dotenv==1.0.0
+
+# Time and Date Handling
+pytz==2023.3.post1
