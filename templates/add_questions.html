@@ -3,94 +3,152 @@
 {% block title %}Add Questions{% endblock %}
 
 {% block body %}
-<form method="post" action="{{ url_for('main.add_questions') }}" enctype="multipart/form-data">
-  <h1 class="text-center">Add Questions</h1>
-  <br><br>
-  {% for i in range(1, questions+1) %}
-  <div class="mb-3">
-    <label for="questionType{{ i }}" class="form-label">Question Type {{ i }}*</label>
-    <select class="form-select" id="questionType{{ i }}" name="qt{{ i }}" onchange="toggleQuestionOptions({{ i }})" required>
-      <option value="multiple_choice">Multiple Choice</option>
-      <option value="true_false">True/False</option>
-      <option value="image">Image Based</option>
-    </select>
-  </div>
+<div class="container">
+    <div class="card bg-dark border-0 shadow-lg mb-4">
+        <div class="card-body">
+            <h1 class="text-center mb-4">
+                <i class="fas fa-question-circle text-primary me-2"></i>Add Questions
+            </h1>
 
-  <div class="mb-3">
-    <label for="InputQuestion{{ i }}" class="form-label">Question {{ i }}*</label>
-    <input type="text" class="form-control" id="InputQuestion{{ i }}" name="q{{ i }}" required>
-  </div>
+            <form method="post" action="{{ url_for('main.add_questions') }}" enctype="multipart/form-data">
+                {% for i in range(1, questions+1) %}
+                <div class="question-card mb-4">
+                    <div class="question-header">
+                        <span class="question-number">Question {{ i }}</span>
+                    </div>
 
-  <!-- Image upload for image-based questions -->
-  <div class="mb-3 image-upload{{ i }}" style="display: none;">
-    <label for="questionImage{{ i }}" class="form-label">Question Image</label>
-    <input type="file" class="form-control" id="questionImage{{ i }}" name="qi{{ i }}" accept="image/*">
-  </div>
+                    <div class="question-body">
+                        <!-- Question Type Selection -->
+                        <div class="mb-3">
+                            <label for="questionType{{ i }}" class="form-label">
+                                <i class="fas fa-list-ul text-info me-2"></i>Question Type {{ i }}*
+                            </label>
+                            <select class="form-select custom-select" id="questionType{{ i }}" name="qt{{ i }}" 
+                                    onchange="toggleQuestionOptions({{ i }})" required>
+                                <option value="multiple_choice">Multiple Choice</option>
+                                <option value="true_false">True/False</option>
+                                <option value="image">Image Based</option>
+                            </select>
+                        </div>
 
-  <!-- Options section -->
-  <div class="options-section{{ i }}">
-    <div class="row multiple-choice{{ i }}">
-      <div class="col">
-        <input type="text" class="form-control" placeholder="Option 1" name="q{{ i }}o1">
-      </div>
-      <div class="col">
-        <input type="text" class="form-control" placeholder="Option 2" name="q{{ i }}o2">
-      </div>
-      <div class="col">
-        <input type="text" class="form-control" placeholder="Option 3" name="q{{ i }}o3">
-      </div>
-      <div class="col">
-        <input type="text" class="form-control" placeholder="Option 4" name="q{{ i }}o4">
-      </div>
+                        <!-- Question Input -->
+                        <div class="mb-3">
+                            <label for="InputQuestion{{ i }}" class="form-label">
+                                <i class="fas fa-pencil-alt text-warning me-2"></i>Question {{ i }}*
+                            </label>
+                            <input type="text" class="form-control custom-input" id="InputQuestion{{ i }}" name="q{{ i }}" required>
+                        </div>
+
+                        <!-- Image Upload -->
+                        <div class="mb-3 image-upload{{ i }}" style="display: none;">
+                            <label for="questionImage{{ i }}" class="form-label">
+                                <i class="fas fa-image text-success me-2"></i>Question Image
+                            </label>
+                            <input type="file" class="form-control custom-file-input" id="questionImage{{ i }}" name="qi{{ i }}" accept="image/*">
+                        </div>
+
+                        <!-- Options Section -->
+                        <div class="options-section{{ i }}">
+                            <div class="row multiple-choice{{ i }} g-3">
+                                <div class="col-md-6 mb-3">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-primary text-white">A</span>
+                                        <input type="text" class="form-control custom-input" placeholder="Option 1" name="q{{ i }}o1">
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-success text-white">B</span>
+                                        <input type="text" class="form-control custom-input" placeholder="Option 2" name="q{{ i }}o2">
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-warning text-dark">C</span>
+                                        <input type="text" class="form-control custom-input" placeholder="Option 3" name="q{{ i }}o3">
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-info text-white">D</span>
+                                        <input type="text" class="form-control custom-input" placeholder="Option 4" name="q{{ i }}o4">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="true-false{{ i }}" style="display: none;">
+                                <select class="form-select custom-select" name="q{{ i }}tf">
+                                    <option value="T">True</option>
+                                    <option value="F">False</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Correct Answer Selection -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-check-circle text-success me-2"></i>Correct Answer
+                            </label>
+                            <select class="form-select custom-select answer-select{{ i }}" name="q{{ i }}c" required>
+                                <option selected disabled value=''>Choose Correct Option</option>
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                                <option value="D">D</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Category and Difficulty Section -->
+                <div class="settings-card mb-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="category" class="form-label">
+                                <i class="fas fa-folder text-info me-2"></i>Category
+                            </label>
+                            <select class="form-select custom-select" name="category" required>
+                                <option selected disabled value="">Choose Category</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="difficulty" class="form-label">
+                                <i class="fas fa-signal text-warning me-2"></i>Difficulty
+                            </label>
+                            <select class="form-select custom-select" name="difficulty" required>
+                                <option value="easy">Easy</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Confirmation Section -->
+                <div class="confirmation-section mb-4">
+                    <div class="form-check custom-checkbox">
+                        <input type="checkbox" class="form-check-input" id="exampleCheck1" required>
+                        <label class="form-check-label" for="exampleCheck1">
+                            I confirm that all information provided is accurate
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-gradient w-100" 
+                        {% if not show %}onclick="question_already_added(); return false"{% endif %}>
+                    <i class="fas fa-paper-plane me-2"></i>Submit Questions
+                </button>
+            </form>
+        </div>
     </div>
+</div>
 
-    <div class="true-false{{ i }}" style="display: none;">
-      <select class="form-select" name="q{{ i }}tf">
-        <option value="T">True</option>
-        <option value="F">False</option>
-      </select>
-    </div>
-  </div>
-
-  <br>
-  <select class="form-select answer-select{{ i }}" name="q{{ i }}c" required>
-    <option selected disabled value=''>Choose Correct Option</option>
-    <option value="A">A</option>
-    <option value="B">B</option>
-    <option value="C">C</option>
-    <option value="D">D</option>
-  </select>
-  <br>
-  {% endfor %}
-
-  <!-- Category and Difficulty selections -->
-  <div class="mb-3">
-    <label for="category" class="form-label">Category</label>
-    <select class="form-select" name="category" required>
-      <option selected disabled value="">Choose Category</option>
-      {% for category in categories %}
-      <option value="{{ category.id }}">{{ category.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <div class="mb-3">
-    <label for="difficulty" class="form-label">Difficulty</label>
-    <select class="form-select" name="difficulty" required>
-      <option value="easy">Easy</option>
-      <option value="medium" selected>Medium</option>
-      <option value="hard">Hard</option>
-    </select>
-  </div>
-
-  <div class="mb-3 form-check">
-    <input type="checkbox" class="form-check-input" id="exampleCheck1" required>
-    <label class="form-check-label" for="exampleCheck1">I confirmed.</label>
-  </div>
-  <br>
-  <button type="submit" class="btn btn-primary w-100" {% if not show %}onclick="question_already_added(); return false"{% endif %}>Submit</button>
-</form>
-
+<!-- Keep your existing JavaScript -->
 <script>
 function toggleQuestionOptions(questionNum) {
     const questionType = document.getElementById(`questionType${questionNum}`).value;
@@ -142,4 +200,157 @@ const question_already_added = () => {
     alert("You already added questions, wait until administrator not allow you to further add questions");
 }
 </script>
+{% endblock %}
+
+{% block styles %}
+<style>
+/* Card Styles */
+.card {
+    background: rgba(33, 37, 41, 0.8) !important;
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+}
+
+/* Question Card Styling */
+.question-card {
+    background: rgba(44, 48, 52, 0.6);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.question-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.question-header {
+    background: linear-gradient(45deg, #4e73df 10%, #224abe 90%);
+    padding: 10px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.question-number {
+    color: white;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+/* Form Controls */
+.custom-select, .custom-input {
+    background: rgba(33, 37, 41, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-radius: 8px;
+    padding: 10px 15px;
+    transition: all 0.3s ease;
+}
+
+.custom-select:focus, .custom-input:focus {
+    background: rgba(44, 48, 52, 0.9);
+    border-color: #4e73df;
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+}
+
+/* Input Groups */
+.input-group-text {
+    border: none;
+    font-weight: bold;
+}
+
+/* Submit Button */
+.btn-gradient {
+    background: linear-gradient(45deg, #4e73df 10%, #224abe 90%);
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 8px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.btn-gradient:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(78, 115, 223, 0.4);
+    color: white;
+}
+
+/* Custom Checkbox */
+.custom-checkbox .form-check-input {
+    background-color: rgba(33, 37, 41, 0.9);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.custom-checkbox .form-check-input:checked {
+    background-color: #4e73df;
+    border-color: #4e73df;
+}
+
+/* Settings Card */
+.settings-card {
+    background: rgba(44, 48, 52, 0.6);
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.question-card {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* File Input Styling */
+.custom-file-input {
+    background: rgba(33, 37, 41, 0.9);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.1);
+    padding: 10px;
+}
+
+.custom-file-input::-webkit-file-upload-button {
+    background: #4e73df;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    margin-right: 10px;
+    transition: all 0.3s ease;
+}
+
+.custom-file-input::-webkit-file-upload-button:hover {
+    background: #224abe;
+}
+
+/* Form Labels */
+.form-label {
+    color: #fff;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .question-card {
+        padding: 15px;
+    }
+    
+    .input-group {
+        margin-bottom: 10px;
+    }
+}
+</style>
 {% endblock %}

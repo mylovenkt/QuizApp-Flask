@@ -4,43 +4,63 @@
 
 {% block body %}
 <div class="container">
-    <h1 class="text-center mb-4">Admin Panel</h1>
+    <h1 class="text-center mb-4">Admin Dashboard</h1>
     
-    <!-- System Overview -->
+    <!-- System Overview Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card bg-primary text-white">
+            <div class="card bg-gradient-primary text-white">
                 <div class="card-body">
-                    <h5 class="card-title">Total Users</h5>
-                    <h2 class="card-text">{{ stats.total_users }}</h2>
-                    <small>Active Students: {{ stats.active_users }}</small>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1">Total Users</h6>
+                            <h2 class="mb-0">{{ stats.total_users }}</h2>
+                            <small>Active: {{ stats.active_users }}</small>
+                        </div>
+                        <i class="fas fa-users fa-2x opacity-50"></i>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-success text-white">
+            <div class="card bg-gradient-success text-white">
                 <div class="card-body">
-                    <h5 class="card-title">Question Sets</h5>
-                    <h2 class="card-text">{{ stats.total_sets }}</h2>
-                    <small>Active Sets: {{ stats.active_sets }}</small>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1">Quiz Sets</h6>
+                            <h2 class="mb-0">{{ stats.total_sets }}</h2>
+                            <small>Active: {{ stats.active_sets }}</small>
+                        </div>
+                        <i class="fas fa-book fa-2x opacity-50"></i>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-info text-white">
+            <div class="card bg-gradient-info text-white">
                 <div class="card-body">
-                    <h5 class="card-title">Total Questions</h5>
-                    <h2 class="card-text">{{ stats.total_questions }}</h2>
-                    <small>Verified: {{ stats.verified_questions }}</small>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1">Questions</h6>
+                            <h2 class="mb-0">{{ stats.total_questions }}</h2>
+                            <small>Verified: {{ stats.verified_questions }}</small>
+                        </div>
+                        <i class="fas fa-question-circle fa-2x opacity-50"></i>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card bg-warning text-white">
+            <div class="card bg-gradient-warning text-white">
                 <div class="card-body">
-                    <h5 class="card-title">Categories</h5>
-                    <h2 class="card-text">{{ stats.total_categories }}</h2>
-                    <small>Active: {{ stats.active_categories }}</small>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1">Categories</h6>
+                            <h2 class="mb-0">{{ stats.total_categories }}</h2>
+                            <small>In Use: {{ stats.active_categories }}</small>
+                        </div>
+                        <i class="fas fa-tags fa-2x opacity-50"></i>
+                    </div>
                 </div>
             </div>
         </div>
@@ -50,24 +70,38 @@
     <div class="row">
         <!-- Question Management -->
         <div class="col-md-6 mb-4">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Question Management</h5>
+            <div class="card card-hover h-100">
+                <div class="card-header bg-gradient-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i>Question Management</h5>
                 </div>
                 <div class="card-body">
                     <div class="list-group">
                         <a href="{{ url_for('main.question_bank') }}" class="list-group-item list-group-item-action">
-                            <i class="fas fa-book me-2"></i>Question Bank
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-database me-2"></i>Question Bank
+                                    <small class="d-block text-muted">Browse and manage questions</small>
+                                </div>
+                                <span class="badge bg-primary rounded-pill">{{ stats.total_questions }}</span>
+                            </div>
                         </a>
-                        <a href="{{ url_for('main.performance_report') }}" class="list-group-item list-group-item-action">
-                            <i class="fas fa-chart-line me-2"></i>Performance Report
+                        <a href="{{ url_for('main.admin_add_questions') }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-check-double me-2"></i>Review Questions
+                                    <small class="d-block text-muted">Verify pending questions</small>
+                                </div>
+                                <span class="badge bg-warning rounded-pill">{{ stats.total_questions - stats.verified_questions }}</span>
+                            </div>
                         </a>
-                        <a href="{{ url_for('main.admin_show_sets') }}" class="list-group-item list-group-item-action">
-                            <i class="fas fa-layer-group me-2"></i>Manage Quiz Sets
-                        </a>
-                        <a href="{{ url_for('main.admin_add_questions') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                            Verify Questions
-                            <span class="badge bg-warning rounded-pill">{{ stats.total_questions - stats.verified_questions }}</span>
+                        <a href="{{ url_for('main.admin_upload_questions') }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-file-import me-2"></i>Bulk Import
+                                    <small class="d-block text-muted">Import questions via CSV</small>
+                                </div>
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
                         </a>
                     </div>
                 </div>
@@ -76,24 +110,38 @@
 
         <!-- Quiz Set Management -->
         <div class="col-md-6 mb-4">
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">Quiz Set Management</h5>
+            <div class="card card-hover h-100">
+                <div class="card-header bg-gradient-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-book me-2"></i>Quiz Set Management</h5>
                 </div>
                 <div class="card-body">
                     <div class="list-group">
                         <a href="{{ url_for('main.create_set') }}" class="list-group-item list-group-item-action">
-                            Create New Quiz Set
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-plus-circle me-2"></i>Create Quiz Set
+                                    <small class="d-block text-muted">Design new quiz sets</small>
+                                </div>
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
                         </a>
-                        <a href="{{ url_for('main.admin_show_sets') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                            View Quiz Sets
-                            <span class="badge bg-success rounded-pill">{{ stats.total_sets }}</span>
+                        <a href="{{ url_for('main.admin_show_sets') }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-tasks me-2"></i>Manage Sets
+                                    <small class="d-block text-muted">Edit and organize quiz sets</small>
+                                </div>
+                                <span class="badge bg-success rounded-pill">{{ stats.total_sets }}</span>
+                            </div>
                         </a>
                         <a href="{{ url_for('main.admin_show_sets') }}?action=distribute" class="list-group-item list-group-item-action">
-                            Distribute Quiz Sets
-                        </a>
-                        <a href="{{ url_for('main.admin_results') }}" class="list-group-item list-group-item-action">
-                            View Quiz Results
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-share-alt me-2"></i>Distribute
+                                    <small class="d-block text-muted">Assign quizzes to users</small>
+                                </div>
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
                         </a>
                     </div>
                 </div>
@@ -102,64 +150,137 @@
 
         <!-- System Management -->
         <div class="col-md-6 mb-4">
-            <div class="card">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">System Management</h5>
+            <div class="card card-hover h-100">
+                <div class="card-header bg-gradient-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>System Management</h5>
                 </div>
                 <div class="card-body">
                     <div class="list-group">
-                        <a href="{{ url_for('main.manage_users') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                            Manage Users
-                            <span class="badge bg-info rounded-pill">{{ stats.total_users }}</span>
+                        <a href="{{ url_for('main.manage_users') }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-users me-2"></i>User Management
+                                    <small class="d-block text-muted">Manage user accounts</small>
+                                </div>
+                                <span class="badge bg-info rounded-pill">{{ stats.total_users }}</span>
+                            </div>
                         </a>
-                        <a href="{{ url_for('main.manage_categories') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                            Manage Categories
-                            <span class="badge bg-info rounded-pill">{{ stats.total_categories }}</span>
+                        <a href="{{ url_for('main.manage_categories') }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-folder-open me-2"></i>Categories
+                                    <small class="d-block text-muted">Organize question categories</small>
+                                </div>
+                                <span class="badge bg-info rounded-pill">{{ stats.total_categories }}</span>
+                            </div>
+                        </a>
+                        <a href="{{ url_for('main.admin_chat') }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-comments me-2"></i>Chat Management
+                                    <small class="d-block text-muted">Monitor chat rooms</small>
+                                </div>
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
                         </a>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Analytics -->
+        <!-- Analytics & Reports -->
         <div class="col-md-6 mb-4">
-            <div class="card">
-                <div class="card-header bg-warning text-white">
-                    <h5 class="mb-0">Analytics & Reports</h5>
+            <div class="card card-hover h-100">
+                <div class="card-header bg-gradient-warning text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Analytics & Reports</h5>
                 </div>
                 <div class="card-body">
                     <div class="list-group">
                         <a href="{{ url_for('main.leaderboard') }}" class="list-group-item list-group-item-action">
-                            View Leaderboard
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-trophy me-2"></i>Leaderboard
+                                    <small class="d-block text-muted">View top performers</small>
+                                </div>
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
                         </a>
                         <a href="{{ url_for('main.performance_report') }}" class="list-group-item list-group-item-action">
-                            Performance Reports
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-chart-bar me-2"></i>Performance Analytics
+                                    <small class="d-block text-muted">Detailed quiz statistics</small>
+                                </div>
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
+                        </a>
+                        <a href="{{ url_for('main.admin_results') }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-history me-2"></i>Quiz History
+                                    <small class="d-block text-muted">View all quiz attempts</small>
+                                </div>
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
                         </a>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Recent Activity -->
-    <div class="card">
-        <div class="card-header bg-secondary text-white">
-            <h5 class="mb-0">Recent Activity</h5>
-        </div>
-        <div class="card-body">
-            <div class="list-group">
-                {% for activity in recent_activities %}
-                <div class="list-group-item">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1">{{ activity.action }}</h6>
-                        <small>{{ activity.time }}</small>
-                    </div>
-                    <p class="mb-1">{{ activity.description }}</p>
-                    <small>{{ activity.user }}</small>
-                </div>
-                {% endfor %}
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block styles %}
+<style>
+.card {
+    border: none;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    transition: transform 0.2s;
+}
+
+.card-hover:hover {
+    transform: translateY(-5px);
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(45deg, #4e73df 10%, #224abe 90%);
+}
+
+.bg-gradient-success {
+    background: linear-gradient(45deg, #1cc88a 10%, #13855c 90%);
+}
+
+.bg-gradient-warning {
+    background: linear-gradient(45deg, #f6c23e 10%, #dda20a 90%);
+}
+
+.bg-gradient-info {
+    background: linear-gradient(45deg, #36b9cc 10%, #258391 90%);
+}
+
+.list-group-item-action {
+    border: none;
+    margin-bottom: 0.5rem;
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+}
+
+.list-group-item-action:hover {
+    transform: translateX(5px);
+    background-color: #f8f9fa;
+}
+
+.list-group-item small {
+    font-size: 0.75rem;
+}
+
+.opacity-50 {
+    opacity: 0.5;
+}
+
+.badge {
+    padding: 0.5em 0.8em;
+}
+</style>
 {% endblock %}

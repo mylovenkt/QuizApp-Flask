@@ -1,0 +1,319 @@
+{% extends 'layout.html' %}
+
+{% block title %}Analytics Dashboard{% endblock %}
+
+{% block body %}
+<div class="container">
+    <div class="dashboard-header text-center mb-4">
+        <h1 class="display-4 text-gradient">
+            <i class="fas fa-chart-line me-3"></i>Analytics Dashboard
+        </h1>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-5">
+        <!-- Total Quizzes -->
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card quiz-card">
+                <div class="stat-card-body">
+                    <div class="stat-icon">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3 class="stat-value">{{ stats.total_quizzes }}</h3>
+                        <p class="stat-label">Total Quizzes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Average Score -->
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card score-card">
+                <div class="stat-card-body">
+                    <div class="stat-icon">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3 class="stat-value">{{ "%.1f"|format(stats.avg_score) }}%</h3>
+                        <p class="stat-label">Average Score</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Best Score -->
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card best-card">
+                <div class="stat-card-body">
+                    <div class="stat-icon">
+                        <i class="fas fa-trophy"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3 class="stat-value">{{ "%.1f"|format(stats.best_score) }}%</h3>
+                        <p class="stat-label">Best Score</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Average Time -->
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card time-card">
+                <div class="stat-card-body">
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3 class="stat-value">{{ stats.avg_time }}</h3>
+                        <p class="stat-label">Avg. Time per Quiz</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="card activity-card">
+        <div class="card-header">
+            <h3 class="mb-0">
+                <i class="fas fa-history me-2"></i>Recent Activity
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Quiz</th>
+                            <th class="text-center">Score</th>
+                            <th class="text-center">Time Taken</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activity in recent_activity %}
+                        <tr class="activity-row">
+                            <td>
+                                <span class="date-badge">
+                                    {{ activity.date.strftime('%Y-%m-%d %H:%M') }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="quiz-name">{{ activity.details.quiz_name }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="score-badge bg-{{ 
+                                    'success' if activity.details.score >= 80 
+                                    else 'info' if activity.details.score >= 60 
+                                    else 'warning' if activity.details.score >= 40 
+                                    else 'danger' 
+                                }}">
+                                    {{ "%.1f"|format(activity.details.score) }}%
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="time-badge">
+                                    <i class="fas fa-stopwatch me-1"></i>
+                                    {{ activity.details.time_taken }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+/* Dashboard Header */
+.text-gradient {
+    background: linear-gradient(45deg, #4e73df, #36b9cc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: bold;
+}
+
+/* Stat Cards */
+.stat-card {
+    background: rgba(33, 37, 41, 0.8);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.stat-card-body {
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+}
+
+.quiz-card .stat-icon {
+    background: linear-gradient(45deg, #4e73df, #224abe);
+    color: white;
+}
+
+.score-card .stat-icon {
+    background: linear-gradient(45deg, #1cc88a, #13855c);
+    color: white;
+}
+
+.best-card .stat-icon {
+    background: linear-gradient(45deg, #f6c23e, #dda20a);
+    color: white;
+}
+
+.time-card .stat-icon {
+    background: linear-gradient(45deg, #36b9cc, #258391);
+    color: white;
+}
+
+.stat-details {
+    flex-grow: 1;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 0;
+    background: linear-gradient(45deg, #fff, #ccc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.stat-label {
+    color: #858796;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Activity Card */
+.activity-card {
+    background: rgba(33, 37, 41, 0.8);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.activity-card .card-header {
+    background: linear-gradient(45deg, #4e73df 10%, #224abe 90%);
+    color: white;
+    border-bottom: none;
+    padding: 1rem 1.5rem;
+}
+
+.activity-row {
+    transition: all 0.2s ease;
+}
+
+.activity-row:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Badges */
+.date-badge {
+    background: rgba(78, 115, 223, 0.1);
+    color: #4e73df;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.score-badge {
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    font-weight: bold;
+}
+
+.time-badge {
+    background: rgba(54, 185, 204, 0.1);
+    color: #36b9cc;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.quiz-name {
+    font-weight: 500;
+    color: #e9ecef;
+}
+
+/* Table Styles */
+.table {
+    color: #e9ecef;
+    margin-bottom: 0;
+}
+
+.table th {
+    border-top: none;
+    color: #858796;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.table td {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.stat-card {
+    animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.stat-card:nth-child(1) { animation-delay: 0.1s; }
+.stat-card:nth-child(2) { animation-delay: 0.2s; }
+.stat-card:nth-child(3) { animation-delay: 0.3s; }
+.stat-card:nth-child(4) { animation-delay: 0.4s; }
+
+.activity-card {
+    animation: fadeInUp 0.5s ease-out forwards;
+    animation-delay: 0.5s;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .stat-card-body {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .stat-icon {
+        margin-bottom: 1rem;
+    }
+}
+</style>
+{% endblock %} 

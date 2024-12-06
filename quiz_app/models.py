@@ -7,6 +7,7 @@ from werkzeug.security import (
 )
 import json
 from flask import url_for
+from sqlalchemy.orm import validates
 
 # Add new association table
 user_quiz_sets = db.Table('user_quiz_sets',
@@ -35,6 +36,7 @@ class User(UserMixin, db.Model):
     social_links = db.Column(db.JSON)  # Store social media links
     unread_notifications = db.Column(db.Integer, default=0)
     notifications = db.relationship('Notification', backref='user', lazy='dynamic')
+    _is_online = db.Column('is_online', db.Boolean, default=False)
 
     DEFAULT_AVATAR = """
     data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect width='200' height='200' fill='%23E9ECEF'/%3E%3Ccircle cx='100' cy='70' r='50' fill='%23ADB5BD'/%3E%3Ccircle cx='100' cy='230' r='100' fill='%23ADB5BD'/%3E%3C/svg%3E
@@ -51,16 +53,28 @@ class User(UserMixin, db.Model):
 
     @property
     def is_online(self):
-        """Check if user was active in last 5 minutes"""
-        if not self.last_seen:
+        """Check if user was active in last 5 minutes and is marked online"""
+        if not self.last_seen or not self._is_online:
             return False
         return (datetime.utcnow() - self.last_seen).total_seconds() < 300
+
+    @is_online.setter
+    def is_online(self, value):
+        self._is_online = value
+        if value:
+            self.last_seen = datetime.utcnow()
+        db.session.commit()
 
     @property
     def get_avatar_url(self):
         if not self.avatar_url:
             return self.DEFAULT_AVATAR
         return url_for('static', filename=f'uploads/avatars/{self.avatar_url}')
+
+    @property
+    def display_name(self):
+        """Return full name if available, otherwise username"""
+        return self.full_name or self.name
 
 
 class Question(db.Model):
@@ -191,22 +205,84 @@ class ChatRoom(db.Model):
     
     # Relationships
     messages = db.relationship('ChatMessage', backref='room', lazy=True)
-    participants = db.relationship('User', 
-                                 secondary='chat_participants',
-                                 backref=db.backref('chat_rooms', lazy=True))
+    participants = db.relationship(
+        'User',
+        secondary='room_participants',
+        primaryjoin="and_(ChatRoom.id==RoomParticipants.room_id, RoomParticipants.is_active==True)",
+        secondaryjoin="User.id==RoomParticipants.user_id",
+        backref=db.backref('active_chat_rooms', lazy=True),
+        viewonly=True
+    )
     creator = db.relationship('User', backref='created_rooms')
     
+    VALID_TYPES = ['general', 'private', 'quiz_discussion', 'question_discussion']
+    
+    @validates('type')
+    def validate_type(self, key, room_type):
+        if room_type not in self.VALID_TYPES:
+            raise ValueError(f"Invalid room type. Must be one of: {', '.join(self.VALID_TYPES)}")
+        return room_type
+    
+    @validates('name')
+    def validate_name(self, key, name):
+        if not name or len(name.strip()) < 3:
+            raise ValueError("Room name must be at least 3 characters long")
+        if len(name) > 50:
+            raise ValueError("Room name must be less than 50 characters")
+        return name.strip()
+    
+    @validates('passcode')
+    def validate_passcode(self, key, passcode):
+        if hasattr(self, 'is_private') and self.is_private:
+            if not passcode or not str(passcode).strip():
+                raise ValueError("Passcode is required for private rooms")
+            if not str(passcode).isdigit() or len(str(passcode)) < 4 or len(str(passcode)) > 6:
+                raise ValueError("Passcode must be 4-6 digits")
+        return passcode
     @classmethod
     def get_user_private_room_count(cls, user_id):
         return cls.query.filter_by(creator_id=user_id, type='private').count()
 
     def check_passcode(self, passcode):
         """Check if provided passcode matches room passcode"""
+        if not self.is_private:
+            return True
         return str(self.passcode).strip() == str(passcode).strip()
 
     def can_delete(self, user):
         """Check if user can delete this room"""
         return user.is_admin or (user.id == self.creator_id)
+
+    def get_active_participants(self):
+        """Get list of active participants"""
+        return User.query.join(RoomParticipants).filter(
+            RoomParticipants.room_id == self.id,
+            RoomParticipants.is_active == True
+        ).all()
+
+    def get_all_participants(self):
+        """Get list of all participants (active and inactive)"""
+        return User.query.join(RoomParticipants).filter(
+            RoomParticipants.room_id == self.id
+        ).all()
+
+    @property
+    def participants(self):
+        """Property to get all participants"""
+        return self.get_all_participants()
+
+    def get_participant_count(self):
+        """Get total number of participants"""
+        return RoomParticipants.query.filter_by(room_id=self.id).count()
+
+    def is_participant(self, user):
+        """Check if user is an active participant"""
+        participant = RoomParticipants.query.filter_by(
+            user_id=user.id,
+            room_id=self.id,
+            is_active=True
+        ).first()
+        return participant is not None or user.id == self.creator_id
 
 class ChatMessage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -214,22 +290,58 @@ class ChatMessage(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     room_id = db.Column(db.Integer, db.ForeignKey('chat_room.id'), nullable=False)
-    file_url = db.Column(db.String(200))
-    
-    # Relationships
+    file_url = db.Column(db.String(255))
+    edited_at = db.Column(db.DateTime)
+    file_name = db.Column(db.String(255))
+    file_type = db.Column(db.String(100))
+    edited = db.Column(db.Boolean, default=False)
+
+    # Add the relationship to MessageReaction
+    reactions = db.relationship('MessageReaction',
+                                backref=db.backref('message', lazy=True),
+                                lazy='dynamic',
+                                cascade='all, delete-orphan')
+
     user = db.relationship('User', backref='chat_messages')
-    reactions = db.relationship('MessageReaction', backref='message', lazy=True)
+
+    def get_reactions(self):
+        """Get aggregated reactions count"""
+        reaction_counts = {}
+        reactions = MessageReaction.query.filter_by(message_id=self.id).all()
+        for reaction in reactions:
+            if reaction.reaction in reaction_counts:
+                reaction_counts[reaction.reaction] += 1
+            else:
+                reaction_counts[reaction.reaction] = 1
+        return reaction_counts
 
     def can_delete(self, user):
         """Check if user can delete this message"""
         return user.is_admin or user.id == self.user_id
 
 class MessageReaction(db.Model):
+    __tablename__ = 'message_reaction'
+    
     id = db.Column(db.Integer, primary_key=True)
-    message_id = db.Column(db.Integer, db.ForeignKey('chat_message.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    reaction = db.Column(db.String(20), nullable=False)  # emoji code
+    message_id = db.Column(db.Integer, 
+                          db.ForeignKey('chat_message.id', ondelete='CASCADE'), 
+                          nullable=False)
+    user_id = db.Column(db.Integer, 
+                       db.ForeignKey('user.id', ondelete='CASCADE'), 
+                       nullable=False)
+    reaction = db.Column(db.String(20), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Add unique constraint
+    __table_args__ = (
+        db.UniqueConstraint(
+            'message_id', 'user_id', 'reaction',
+            name='uq_user_message_reaction'
+        ),
+    )
+
+    def __repr__(self):
+        return f'<MessageReaction {self.id} {self.reaction}>'
 
 # Association table for chat room participants
 chat_participants = db.Table('chat_participants',
@@ -249,4 +361,25 @@ class MessageReport(db.Model):
     # Add relationships
     message = db.relationship('ChatMessage', backref='reports')
     reporter = db.relationship('User', backref='message_reports')
+
+# Add this class to your models.py file
+class RoomParticipants(db.Model):
+    __tablename__ = 'room_participants'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    room_id = db.Column(db.Integer, db.ForeignKey('chat_room.id'), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    joined_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    last_seen = db.Column(db.DateTime, nullable=True)
+
+    # Relationships
+    user = db.relationship('User', backref=db.backref('room_participations', lazy=True))
+    room = db.relationship('ChatRoom', backref=db.backref('room_participants', lazy=True))
+
+    def __repr__(self):
+        return f'<RoomParticipant {self.user_id} in room {self.room_id}>'
+
+    def update_status(self, status):
+        self.is_active = status
 

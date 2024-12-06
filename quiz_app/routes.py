@@ -7,7 +7,8 @@ from flask import (
     render_template,
     request,
     jsonify,
-    send_file
+    send_file,
+    current_app
 )
 from . import models
 from .extentions import db, socketio
@@ -55,8 +56,18 @@ import pytz
 from base64 import b64encode
 from .static.images.medals import GOLD_MEDAL, SILVER_MEDAL, BRONZE_MEDAL
 import base64
+from .models import RoomParticipants
+from .models import ChatRoom, ChatMessage
+from .models import QuestionSet
+from .models import User
+import logging
+import requests
+from quiz_app.models import ChatMessage, MessageReaction, User, RoomParticipants
 
 main = Blueprint("main", __name__)
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 @main.app_template_filter('timeago')
 def timeago(date):
@@ -86,6 +97,33 @@ def b64encode_filter(data):
     if isinstance(data, str):
         data = data.encode()
     return base64.b64encode(data).decode()
+
+@main.app_template_filter('format_time')
+def format_time(timestamp):
+    """Format timestamp to local time"""
+    if not timestamp:
+        return ""
+    
+    # Convert to GMT+7
+    gmt7 = pytz.timezone('Asia/Bangkok')
+    if timestamp.tzinfo is None:
+        timestamp = pytz.UTC.localize(timestamp)
+    local_time = timestamp.astimezone(gmt7)
+    
+    # Get current time in GMT+7
+    now = datetime.utcnow().replace(tzinfo=pytz.UTC).astimezone(gmt7)
+    
+    # If same day, show only time
+    if local_time.date() == now.date():
+        return local_time.strftime('%H:%M')
+    
+    # If within a week, show day and time
+    delta = now.date() - local_time.date()
+    if delta.days < 7:
+        return local_time.strftime('%A %H:%M')
+    
+    # Otherwise show full date
+    return local_time.strftime('%Y-%m-%d %H:%M')
 
 def admin_required(f):
     @wraps(f)
@@ -463,15 +501,22 @@ def admin():
         flash("Error loading admin dashboard", "error")
         return redirect(url_for("main.index"))
 
+def utc_to_gmt7(utc_dt):
+    """Convert UTC datetime to GMT+7"""
+    if utc_dt is None:
+        return None
+    utc = pytz.UTC
+    gmt7 = pytz.timezone('Asia/Bangkok')  # GMT+7
+    if utc_dt.tzinfo is None:
+        utc_dt = utc.localize(utc_dt)
+    return utc_dt.astimezone(gmt7)
+
 @main.route("/admin/results")
 @login_required
+@admin_required
 def admin_results():
-    if current_user.is_admin:
-        res = models.Result.query.all()
-        return render("admin/result.html", results=res)
-    else:
-        flash("You are not an admin, so you can't access this portal", "warning")
-        return redirect(url_for('main.index'))
+    results = models.Result.query.all()
+    return render_template("admin/result.html", results=results, utc_to_gmt7=utc_to_gmt7)
 
 @main.route("/admin/add_questions", methods=["GET", "POST"])
 @login_required
@@ -964,6 +1009,7 @@ def delete_user(user_id):
         db.session.delete(user)
         db.session.commit()
         return jsonify({"message": "User deleted successfully"}), 200
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -1285,12 +1331,13 @@ def admin_show_sets():
 @main.route("/admin/sets/<int:set_id>/view")
 @login_required
 @admin_required
-def view_set(set_id):
-    quiz_set = models.QuestionSet.query.get_or_404(set_id)
+def view_quiz_set(set_id):
+    quiz_set = QuestionSet.query.get_or_404(set_id)
     return render_template(
-        "admin/set_details.html", 
-        quiz_set=quiz_set,
-        layout=False
+        'admin/quiz_set_details.html',
+        set=quiz_set,
+        questions=quiz_set.questions,
+        users=quiz_set.users
     )
 
 @main.route("/admin/sets/<int:set_id>/edit", methods=["GET", "POST"])
@@ -1532,168 +1579,474 @@ def clear_all_notifications():
 @main.route("/chat")
 @login_required
 def chat_rooms():
-    # Get rooms by type
-    general_rooms = models.ChatRoom.query.filter_by(type='general').all()
-    quiz_rooms = models.ChatRoom.query.filter_by(type='quiz_discussion').all()
-    question_rooms = models.ChatRoom.query.filter_by(type='question_discussion').all()
-    private_rooms = models.ChatRoom.query.filter_by(type='private', is_private=True).all()
+    # Get all rooms
+    general_rooms = ChatRoom.query.filter_by(type='general').all()
+    private_rooms = ChatRoom.query.filter_by(type='private').all()
+    quiz_rooms = ChatRoom.query.filter_by(type='quiz_discussion').all()
     
-    # Get quiz sets and questions for room creation
-    quiz_sets = models.QuestionSet.query.all()
-    questions = models.Question.query.filter_by(verified=True).all()
-    
+    # Get all room participations for the current user (not just active ones)
+    user_participations = {p.room_id: p for p in RoomParticipants.query.filter_by(
+        user_id=current_user.id
+    ).all()}  # Removed is_active=True filter
+
     return render_template(
-        "chat/rooms.html",
+        'chat/rooms.html',
         general_rooms=general_rooms,
-        quiz_rooms=quiz_rooms,
-        question_rooms=question_rooms,
         private_rooms=private_rooms,
-        quiz_sets=quiz_sets,
-        questions=questions
+        quiz_rooms=quiz_rooms,
+        user_participations=user_participations
     )
 
-@main.route("/chat/room/<int:room_id>")
+@main.route('/chat/<int:room_id>')
 @login_required
 def chat_room(room_id):
-    room = models.ChatRoom.query.get_or_404(room_id)
+    room = ChatRoom.query.get_or_404(room_id)
+    # Get all participants (both active and inactive)
+    participants = User.query.join(RoomParticipants).filter(
+        RoomParticipants.room_id == room.id
+    ).all()
     
-    # Add current user to room participants if not already there
-    if current_user not in room.participants:
-        room.participants.append(current_user)
+    # Add creator if not in participants list
+    if room.creator and room.creator not in participants:
+        participants.insert(0, room.creator)
+    
+    # Get online/offline counts
+    online_count = sum(1 for p in participants if p.is_online)
+    offline_count = len(participants) - online_count
+
+    return render_template('chat/room.html',
+        room=room,
+        messages=ChatMessage.query.filter_by(room_id=room.id).order_by(ChatMessage.created_at).all(),
+        participants=participants,
+        online_count=online_count,
+        offline_count=offline_count
+    )
+
+@main.route("/chat/room/<int:room_id>/delete", methods=['POST'])
+@login_required
+def delete_room(room_id):
+    room = ChatRoom.query.get_or_404(room_id)
+    
+    # Check if user can delete room
+    if current_user.id != room.creator_id and not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        # Delete all room participants
+        RoomParticipants.query.filter_by(room_id=room_id).delete()
+        
+        # Delete all messages in the room
+        ChatMessage.query.filter_by(room_id=room_id).delete()
+        
+        # Delete the room
+        db.session.delete(room)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+@socketio.on('join_private_room')
+def handle_join_private_room(data):
+    room_id = data.get('room')
+    passcode = data.get('passcode')
+    
+    if not room_id or not passcode:
+        return {'success': False, 'error': 'Missing data'}
+        
+    room = ChatRoom.query.get(room_id)
+    if not room:
+        return {'success': False, 'error': 'Room not found'}
+        
+    if not room.check_passcode(passcode):
+        return {'success': False, 'error': 'Invalid passcode'}
+    
+    # Add user as participant
+    participant = RoomParticipants.query.filter_by(
+        user_id=current_user.id,
+        room_id=room_id
+    ).first()
+    
+    if not participant:
+        participant = RoomParticipants(
+            user_id=current_user.id,
+            room_id=room_id,
+            is_active=True,
+            joined_at=datetime.utcnow()
+        )
+        db.session.add(participant)
+        db.session.commit()
+    else:
+        participant.is_active = True
+        participant.last_seen = datetime.utcnow()
         db.session.commit()
     
-    # Convert messages timestamps to GMT+7
-    messages = models.ChatMessage.query.filter_by(room_id=room_id).order_by(models.ChatMessage.created_at).all()
+    join_room(str(room_id))
+    emit('user_joined', {
+        'user_id': current_user.id,
+        'username': current_user.name,
+        'is_online': True
+    }, room=str(room_id))
     
-    return render_template('chat/room.html',
-                         room=room,
-                         room_id=room_id,
-                         messages=messages,
-                         participants=room.participants,
-                         utc_to_gmt7=utc_to_gmt7)  # Pass the conversion function to template
+    return {'success': True}
 
-@main.route("/chat/create", methods=["POST"])
+@main.route("/chat/create", methods=['POST'])
 @login_required
 def create_chat_room():
     try:
-        if not request.is_json:
-            return jsonify({"success": False, "error": "Invalid request format"}), 400
-            
         data = request.json
-        print("Creating room with data:", data)  # Debug log
+        name = data.get('name', '').strip()
+        room_type = data.get('type', '').strip()
+        passcode = data.get('passcode')
         
-        # Validate required fields
-        if not data.get('name'):
-            return jsonify({"success": False, "error": "Room name is required"}), 400
+        # Validate room name
+        if not name:
+            return jsonify({'success': False, 'error': 'Room name is required'})
+        
+        if len(name) > 50:
+            return jsonify({'success': False, 'error': 'Room name must be less than 50 characters'})
             
-        # Check private room limits (skip for admins)
-        if data['type'] == 'private' and not current_user.is_admin:
-            passcode = str(data.get('passcode', '')).strip()
-            if not passcode.isdigit() or len(passcode) < 4 or len(passcode) > 6:
-                return jsonify({"success": False, "error": "Invalid passcode format"}), 400
-                
-            private_room_count = models.ChatRoom.get_user_private_room_count(current_user.id)
-            if private_room_count >= 3:
-                return jsonify({
-                    "success": False, 
-                    "error": "You have reached the maximum limit of 3 private rooms"
-                }), 400
-
-        room = models.ChatRoom(
-            name=data['name'],
-            type=data['type'],
-            is_private=data.get('is_private', False),
-            passcode=str(data.get('passcode', '')).strip(),  # Ensure passcode is stored as string
-            creator_id=current_user.id
+        # Validate room type
+        valid_types = ['general', 'private', 'quiz_discussion']
+        if room_type not in valid_types:
+            return jsonify({'success': False, 'error': 'Invalid room type'})
+            
+        # Validate passcode for private rooms
+        if room_type == 'private':
+            if not passcode or not str(passcode).isdigit() or len(str(passcode)) < 4 or len(str(passcode)) > 6:
+                return jsonify({'success': False, 'error': 'Private rooms require a 4-6 digit passcode'})
+            
+        # Create room
+        room = ChatRoom(
+            name=name,
+            type=room_type,
+            creator_id=current_user.id,
+            is_private=(room_type == 'private'),
+            passcode=passcode if room_type == 'private' else None
         )
-        print(f"Created room with passcode: {room.passcode}")  # Debug log
         
-        room.participants.append(current_user)
+        # First save the room to get its ID
         db.session.add(room)
+        db.session.flush()  # This gets us the room.id without committing
+        
+        # Now create the participant with the room ID
+        participant = RoomParticipants(
+            user_id=current_user.id,
+            room_id=room.id,
+            is_active=True,
+            joined_at=datetime.utcnow(),
+            last_seen=datetime.utcnow()
+        )
+        
+        db.session.add(participant)
         db.session.commit()
         
-        return jsonify({'success': True, 'room_id': room.id})
+        return jsonify({
+            'success': True,
+            'room_id': room.id
+        })
+        
     except Exception as e:
         db.session.rollback()
-        print(f"Error creating chat room: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        print(f"Error creating chat room: {str(e)}")  # Add logging
+        return jsonify({'success': False, 'error': str(e)})
 
 # WebSocket events
 @socketio.on('connect')
 def handle_connect():
     if current_user.is_authenticated:
+        current_user.is_online = True
         current_user.last_seen = datetime.utcnow()
         db.session.commit()
-        print(f"Client connected: {current_user.name}")
+        
+        # Get all rooms the user is in
+        participants = RoomParticipants.query.filter_by(
+            user_id=current_user.id
+        ).all()
+        
+        for participant in participants:
+            participant.update_status(True)
+            db.session.commit()
+            
+            # Emit status update to room
+            emit_status_update(participant.room_id, current_user.id, True)
 
 @socketio.on('disconnect')
 def handle_disconnect():
     if current_user.is_authenticated:
+        current_user.is_online = False
         current_user.last_seen = datetime.utcnow()
         db.session.commit()
-        print(f"Client disconnected: {current_user.name}")
+        
+        # Update status in all rooms
+        participants = RoomParticipants.query.filter_by(
+            user_id=current_user.id
+        ).all()
+        
+        for participant in participants:
+            participant.update_status(False)
+            db.session.commit()
+            
+            # Emit status update to room
+            emit_status_update(participant.room_id, current_user.id, False)
+
+def emit_status_update(room_id, user_id, is_online):
+    """Emit status update to room"""
+    # Get actual online users
+    online_users = RoomParticipants.query.join(User).filter(
+        RoomParticipants.room_id == room_id,
+        RoomParticipants.is_active == True,
+        User._is_online == True
+    ).count()
+    
+    # Get total users in room
+    total_users = RoomParticipants.query.filter_by(
+        room_id=room_id
+    ).count()
+    
+    offline_users = total_users - online_users
+    
+    print(f"Status Update - Room: {room_id}, Online: {online_users}, Offline: {offline_users}")
+    
+    socketio.emit('user_status_changed', {
+        'user_id': user_id,
+        'is_online': is_online,
+        'online_count': online_users,
+        'offline_count': offline_users,
+        'total_count': total_users
+    }, room=str(room_id))
 
 @socketio.on('join')
 def on_join(data):
-    try:
-        room = str(data.get('room', ''))  # Use get() with default value
-        if not room:
-            print("No room ID provided")
-            return
-            
-        join_room(room)
-        print(f"User {current_user.name} joined room {room}")
+    room = data['room']
+    join_room(room)
+    
+    if current_user.is_authenticated:
+        participant = RoomParticipants.query.filter_by(
+            user_id=current_user.id,
+            room_id=room
+        ).first()
         
-        # Update participant status
-        participants = get_room_participants(room)
-        emit('participant_update', {'participants': participants}, room=room, broadcast=True)
+        if participant:
+            # Update participant status
+            participant.is_active = True
+            current_user.is_online = True
+            current_user.last_seen = datetime.utcnow()
+            db.session.commit()
+            
+            # Emit status update
+            emit_status_update(room, current_user.id, True)
+            
+            # Also emit current counts to all users
+            online_count = RoomParticipants.query.join(User).filter(
+                RoomParticipants.room_id == room,
+                User._is_online == True
+            ).count()
+            total_count = RoomParticipants.query.filter_by(room_id=room).count()
+            
+            socketio.emit('initial_counts', {
+                'online_count': online_count,
+                'offline_count': total_count - online_count
+            }, room=str(room))
+
+@socketio.on('leave')
+def on_leave(data):
+    room = data['room']
+    leave_room(room)
+    
+    if current_user.is_authenticated:
+        participant = RoomParticipants.query.filter_by(
+            user_id=current_user.id,
+            room_id=room
+        ).first()
+        
+        if participant:
+            participant.update_status(False)
+            current_user.is_online = False
+            current_user.last_seen = datetime.utcnow()
+            db.session.commit()
+            
+            emit_status_update(room, current_user.id, False)
+
+@socketio.on('user_active')
+def handle_user_active(data):
+    if current_user.is_authenticated:
+        room = data.get('room')
+        if room:
+            participant = RoomParticipants.query.filter_by(
+                user_id=current_user.id,
+                room_id=room
+            ).first()
+            
+            if participant:
+                participant.update_status(True)
+                current_user.is_online = True
+                current_user.last_seen = datetime.utcnow()
+                db.session.commit()
+                
+                emit_status_update(room, current_user.id, True)
+
+@socketio.on('user_inactive')
+def handle_user_inactive(data):
+    try:
+        current_user.is_online = False
+        db.session.commit()
+        
+        # Get updated counts
+        room = ChatRoom.query.get(int(data['room']))
+        online_count = sum(1 for p in room.participants if p.is_online)
+        total_count = len(room.participants)
+        
+        emit('user_status_changed', {
+            'user_id': current_user.id,
+            'is_online': False,
+            'online_count': online_count,
+            'offline_count': total_count - online_count
+        }, room=data['room'], broadcast=True)
         
     except Exception as e:
-        print(f"Error in join: {str(e)}")
-
-def utc_to_gmt7(utc_dt):
-    if utc_dt is None:
-        return None
-    gmt7 = pytz.timezone('Asia/Bangkok')
-    return utc_dt.replace(tzinfo=pytz.UTC).astimezone(gmt7)
+        db.session.rollback()
+        print(f"Error handling user inactive: {str(e)}")
 
 @socketio.on('message')
 def handle_message(data):
     try:
-        room = str(data.get('room', ''))
         message_text = data.get('message', '').strip()
+        room = data.get('room')
         file_url = data.get('file_url')
+        file_name = data.get('file_name')
+        file_type = data.get('file_type')
         
-        if not room or not message_text:
+        if not room or (not message_text and not file_url):
             return
             
-        # Save message to database in UTC
-        chat_message = models.ChatMessage(
+        chat_message = ChatMessage(
             content=message_text,
+            file_url=file_url,
+            file_name=file_name,
+            file_type=file_type,
             user_id=current_user.id,
-            room_id=int(room),
-            file_url=file_url
+            room_id=room,
+            created_at=datetime.utcnow()
         )
+        
         db.session.add(chat_message)
         db.session.commit()
         
-        # Convert to GMT+7 for display
-        gmt7_time = utc_to_gmt7(chat_message.created_at)
-        
-        # Broadcast message with GMT+7 timestamp
-        emit('message', {
-            'id': chat_message.id,
-            'message': message_text,
-            'author': current_user.name,
-            'author_id': current_user.id,  # Make sure this is included
+        # Prepare user data
+        user_data = {
+            'id': current_user.id,
+            'display_name': current_user.display_name,
             'avatar_url': current_user.get_avatar_url,
-            'created_at': gmt7_time.strftime('%Y-%m-%d %H:%M:%S'),
-            'room_id': room,
-            'file_url': file_url
-        }, room=room, broadcast=True)
+            'is_online': current_user.is_online
+        }
+        
+        emit('new_message', {
+            'id': chat_message.id,
+            'content': chat_message.content,
+            'file_url': chat_message.file_url,
+            'file_name': chat_message.file_name,
+            'file_type': chat_message.file_type,
+            'created_at': chat_message.created_at.isoformat(),
+            'user': user_data,
+            'edited': False
+        }, room=room)
         
     except Exception as e:
         print(f"Error handling message: {str(e)}")
+        db.session.rollback()
+
+@socketio.on('add_reaction')
+def handle_reaction(data):
+    try:
+        message_id = data.get('message_id')
+        emoji = data.get('emoji')
+        room = data.get('room')
+        
+        message = ChatMessage.query.get(message_id)
+        if not message:
+            return
+            
+        # Check if user already reacted with this emoji
+        existing_reaction = MessageReaction.query.filter_by(
+            message_id=message_id,
+            user_id=current_user.id,
+            reaction=emoji
+        ).first()
+
+        if existing_reaction:
+            # Remove reaction if it exists
+            db.session.delete(existing_reaction)
+        else:
+            # Add new reaction
+            new_reaction = MessageReaction(
+                message_id=message_id,
+                user_id=current_user.id,
+                reaction=emoji
+            )
+            db.session.add(new_reaction)
+
+        db.session.commit()
+        
+        # Get updated reactions
+        updated_reactions = message.get_reactions()
+        
+        # Emit update to all users in the room
+        emit('reaction_updated', {
+            'message_id': message_id,
+            'reactions': updated_reactions
+        }, room=room)
+        
+    except Exception as e:
+        print(f"Error handling reaction: {str(e)}")
+        db.session.rollback()
+
+@socketio.on('edit_message')
+def handle_edit_message(data):
+    try:
+        message_id = data.get('message_id')
+        content = data.get('content')
+        room = data.get('room')
+        
+        message = ChatMessage.query.get(message_id)
+        if not message or message.user_id != current_user.id:
+            return
+            
+        message.content = content
+        message.edited = True
+        message.edited_at = datetime.utcnow()
+        db.session.commit()
+        
+        emit('message_edited', {
+            'message_id': message_id,
+            'content': content,
+            'edited_at': message.edited_at.strftime('%H:%M')
+        }, room=room)
+        
+    except Exception as e:
+        print(f"Error editing message: {str(e)}")
+        db.session.rollback()
+
+@socketio.on('delete_message')
+def handle_delete_message(data):
+    try:
+        message_id = data.get('message_id')
+        room = data.get('room')
+        
+        message = ChatMessage.query.get(message_id)
+        if not message or (message.user_id != current_user.id and not current_user.is_admin):
+            return
+            
+        db.session.delete(message)
+        db.session.commit()
+        
+        emit('message_deleted', {
+            'message_id': message_id
+        }, room=room)
+        
+    except Exception as e:
+        print(f"Error deleting message: {str(e)}")
         db.session.rollback()
 
 def get_room_participants(room_id):
@@ -1735,17 +2088,15 @@ def handle_reaction(data):
                 message_id=data['message_id'],
                 user_id=current_user.id,
                 reaction=data['reaction']
-            )
+            )  # Added missing closing parenthesis
             db.session.add(reaction)
+            db.session.commit()
             emit('reaction_added', {
                 'message_id': data['message_id'],
                 'reaction': data['reaction'],
                 'user': current_user.name
             }, room=data['room'])
-            
-        db.session.commit()
-        
-    except Exception as e:
+    except Exception as e:  # Added missing except clause
         db.session.rollback()
         print(f"Error handling reaction: {str(e)}")
 
@@ -1845,7 +2196,7 @@ def create_rich_text_question():
             return jsonify({
                 "success": False,
                 "error": str(e)
-            })
+            })  # Closed parenthesis here
     
     return render_template(
         "admin/rich_text_editor.html",
@@ -1879,22 +2230,64 @@ def quiz_discussion(set_id):
 def question_discussion(question_id):
     question = models.Question.query.get_or_404(question_id)
     
-    # Find or create discussion room for this question
-    room = models.ChatRoom.query.filter_by(
-        type='question_discussion',
+    # Create a truncated room name
+    room_name = f"Question {question_id} Discussion"
+    if len(room_name) > 50:
+        room_name = room_name[:47] + "..."
+    
+    # Check if discussion room already exists
+    room = ChatRoom.query.filter_by(
+        type='quiz_discussion',
         question_id=question_id
     ).first()
     
     if not room:
+        # Create new discussion room
         room = models.ChatRoom(
-            name=f"Question Discussion: {question.question[:50]}...",
-            type='question_discussion',
+            name=room_name,
+            type='quiz_discussion',
+            creator_id=current_user.id,
+            is_private=False,
             question_id=question_id
         )
+        
         db.session.add(room)
+        db.session.flush()
+        
+        participant = RoomParticipants(
+            user_id=current_user.id,
+            room_id=room.id,
+            is_active=True,
+            joined_at=datetime.utcnow(),
+            last_seen=datetime.utcnow()
+        )
+        
+        db.session.add(participant)
         db.session.commit()
     
-    return redirect(url_for('main.chat_room', room_id=room.id))
+    # Get question details
+    question_data = {
+        'id': question.id,
+        'text': question.question,
+        'answers': [
+            {'text': question.option1, 'is_correct': question.correct_option == 'A'},
+            {'text': question.option2, 'is_correct': question.correct_option == 'B'},
+            {'text': question.option3, 'is_correct': question.correct_option == 'C'},
+            {'text': question.option4, 'is_correct': question.correct_option == 'D'}
+        ],
+        'correct_answer': question.correct_option,
+        'explanation': question.explanation
+    }
+    
+    return render_template(
+        'chat/room.html',
+        room=room,
+        room_id=room.id,
+        messages=ChatMessage.query.filter_by(room_id=room.id).order_by(ChatMessage.created_at).all(),
+        participants=room.get_active_participants(),
+        utc_to_gmt7=utc_to_gmt7,
+        question=question_data
+    )
 
 @socketio.on('typing')
 def on_typing(data):
@@ -1912,9 +2305,9 @@ def on_stop_typing(data):
 
 @main.route("/chat/upload", methods=["POST"])
 @login_required
-def upload_chat_file():
+def chat_upload_file():
     if 'file' not in request.files:
-        return jsonify({"error": "No file provided"}), 400
+        return jsonify({"error": "No file uploaded"}), 400
         
     file = request.files['file']
     if file and allowed_file(file.filename, {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'doc', 'docx'}):
@@ -1964,12 +2357,12 @@ def handle_reaction(data):
                 reaction=data['reaction']
             )
             db.session.add(reaction)
+            db.session.commit()
             emit('reaction_added', {
                 'message_id': data['message_id'],
                 'reaction': data['reaction'],
                 'user': current_user.name
             }, room=data['room'])
-            
         db.session.commit()
         
     except Exception as e:
@@ -2035,83 +2428,6 @@ def chat_reports():
         .order_by(models.MessageReport.created_at.desc()).all()
     return render_template('admin/chat_reports.html', reports=reports)
 
-@main.route("/chat/message/<int:message_id>/delete", methods=["POST"])
-@login_required
-def delete_message(message_id):
-    try:
-        message = models.ChatMessage.query.get_or_404(message_id)
-        
-        # Check if user can delete this message
-        if not message.can_delete(current_user):
-            return jsonify({"success": False, "error": "Unauthorized"}), 403
-        
-        room_id = message.room_id  # Store room_id before deleting
-        
-        # Delete associated file if exists
-        if message.file_url:
-            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'chat', message.file_url)
-            if os.path.exists(file_path):
-                os.remove(file_path)
-        
-        # Delete message
-        db.session.delete(message)
-        db.session.commit()
-        
-        # Notify room about deletion
-        socketio.emit('message_deleted', {
-            'message_id': message_id,
-            'deleted_by': current_user.name
-        }, room=str(room_id))
-        
-        return jsonify({"success": True})
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error deleting message: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@main.route("/admin/user/warn", methods=["POST"])
-@login_required
-@admin_required
-def warn_user():
-    data = request.json
-    user = models.User.query.get_or_404(data['user_id'])
-    room = models.ChatRoom.query.get_or_404(data['room_id'])
-    
-    try:
-        # Create warning notification
-        notification = models.Notification(
-            user_id=user.id,
-            title="Warning from Admin",
-            message=data['reason'],
-            type="warning",
-            link=url_for('main.chat_room', room_id=room.id)
-        )
-        db.session.add(notification)
-        user.unread_notifications += 1
-        
-        # Send system message to chat
-        system_message = models.Message(
-            content=f"⚠️ User {user.name} received a warning: {data['reason']}",
-            user_id=current_user.id,
-            room_id=room.id
-        )
-        db.session.add(system_message)
-        db.session.commit()
-        
-        # Notify room about the system message
-        socketio.emit('message', {
-            'id': system_message.id,
-            'user': 'System',
-            'content': system_message.content,
-            'timestamp': system_message.created_at.strftime('%H:%M'),
-            'is_system': True
-        }, room=room.id)
-        
-        return jsonify({"success": True})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
 
 @main.route("/admin/chat")
 @login_required
@@ -2328,10 +2644,6 @@ def review_questions():
         except Exception as e:
             db.session.rollback()
             return jsonify({"error": str(e)}), 500
-    
-    # GET method - show unverified questions
-    questions = models.Question.query.filter_by(verified=False).all()
-    return render_template("admin/review_questions.html", questions=questions)
 
 @main.route("/admin/review-question/<int:question_id>")
 @login_required
@@ -2489,13 +2801,12 @@ def submit_quiz():
             created_at=datetime.utcnow(),
             answers=json.dumps(answers)
         )
-
         db.session.add(result)
         db.session.commit()
 
         # Get new leaderboard position
         new_position = get_user_leaderboard_position(current_user.id, int(set_id))
-        
+
         # Notify about quiz completion
         send_notification(
             user=current_user,
@@ -2746,3 +3057,264 @@ def upload_questions():
             return redirect(request.url)
             
     return render_template('admin/upload_questions.html')
+
+@socketio.on('leave_room')
+def handle_leave_room(data):
+    room = data.get('room')
+    if room:
+        # Update room_participants status
+        participant = RoomParticipants.query.filter_by(
+            user_id=current_user.id,
+            room_id=room
+        ).first()
+        if participant:
+            participant.is_active = False
+            participant.last_seen = datetime.utcnow()
+            db.session.commit()
+            
+        leave_room(room)
+        emit('user_left', {
+            'user_id': current_user.id,
+            'username': current_user.name
+        }, room=room)
+
+@socketio.on('user_active')
+def handle_user_active(data):
+    try:
+        current_user.is_online = True
+        db.session.commit()
+        
+        # Get updated counts
+        room = ChatRoom.query.get(int(data['room']))
+        online_count = sum(1 for p in room.participants if p.is_online)
+        total_count = len(room.participants)
+        
+        emit('user_status_changed', {
+            'user_id': current_user.id,
+            'is_online': True,
+            'online_count': online_count,
+            'offline_count': total_count - online_count
+        }, room=data['room'], broadcast=True)
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error handling user active: {str(e)}")
+
+@socketio.on('user_inactive')
+def handle_user_inactive(data):
+    try:
+        current_user.is_online = False
+        db.session.commit()
+        
+        # Get updated counts
+        room = ChatRoom.query.get(int(data['room']))
+        online_count = sum(1 for p in room.participants if p.is_online)
+        total_count = len(room.participants)
+        
+        emit('user_status_changed', {
+            'user_id': current_user.id,
+            'is_online': False,
+            'online_count': online_count,
+            'offline_count': total_count - online_count
+        }, room=data['room'], broadcast=True)
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error handling user inactive: {str(e)}")
+
+@main.route("/chat/join_private_room", methods=['POST'])
+@login_required
+def join_private_room():
+    try:
+        data = request.json
+        room_id = data.get('room')
+        passcode = data.get('passcode')
+        
+        if not room_id or not passcode:
+            return jsonify({'success': False, 'error': 'Missing data'})
+            
+        room = ChatRoom.query.get(room_id)
+        if not room:
+            return jsonify({'success': False, 'error': 'Room not found'})
+            
+        if not room.check_passcode(passcode):
+            return jsonify({'success': False, 'error': 'Invalid passcode'})
+        
+        # Add or update participant
+        participant = RoomParticipants.query.filter_by(
+            user_id=current_user.id,
+            room_id=room_id
+        ).first()
+        
+        if not participant:
+            participant = RoomParticipants(
+                user_id=current_user.id,
+                room_id=room_id,
+                is_active=True,
+                joined_at=datetime.utcnow(),
+                last_seen=datetime.utcnow()
+            )
+            db.session.add(participant)
+        else:
+            participant.is_active = True
+            participant.last_seen = datetime.utcnow()
+            
+        try:
+            db.session.commit()
+        except:
+            db.session.rollback()
+            raise
+            
+        return jsonify({
+            'success': True,
+            'message': 'Successfully joined room',
+            'room_id': room_id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+@main.errorhandler(Exception)
+def handle_error(error):
+    current_app.logger.error(f"Error: {str(error)}", exc_info=True)
+    return jsonify({'success': False, 'error': str(error)}), 500
+
+@main.route("/chat/message/<int:message_id>/edit", methods=['POST'])
+@login_required
+def edit_message(message_id):
+    try:
+        message = ChatMessage.query.get_or_404(message_id)
+        
+        # Check permission
+        if not current_user.is_admin and message.user_id != current_user.id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+            
+        data = request.json
+        new_content = data.get('content', '').strip()
+        
+        if not new_content:
+            return jsonify({'success': False, 'error': 'Message cannot be empty'})
+            
+        message.content = new_content
+        message.edited_at = datetime.utcnow()
+        db.session.commit()
+        
+        socketio.emit('message_edited', {
+            'message_id': message_id,
+            'content': new_content,
+            'edited_at': utc_to_gmt7(message.edited_at).strftime('%H:%M')
+        }, room=str(message.room_id))
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+@main.route("/chat/message/<int:message_id>/delete", methods=['POST'])
+@login_required
+def delete_chat_message(message_id):
+    try:
+        message = ChatMessage.query.get_or_404(message_id)
+        
+        # Check permission
+        if not current_user.is_admin and message.user_id != current_user.id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+            
+        # Delete the file if it exists
+        if message.file_url:
+            try:
+                # Get file path from URL
+                file_path = os.path.join(
+                    current_app.root_path,
+                    'static',
+                    'uploads',
+                    'chat',
+                    os.path.basename(message.file_url)
+                )
+                # Delete file if it exists
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print(f"Error deleting file: {str(e)}")
+            
+        room_id = message.room_id
+        db.session.delete(message)
+        db.session.commit()
+        
+        # Emit socket event
+        socketio.emit('message_deleted', {
+            'message_id': message_id
+        }, room=str(room_id))
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+@main.route('/upload', methods=['POST'])
+@login_required
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+        
+    # Check file size (100MB limit)
+    if len(file.read()) > 100 * 1024 * 1024:  # 100MB in bytes
+        return jsonify({'error': 'File size must be under 100MB'}), 400
+    file.seek(0)  # Reset file pointer
+    
+    # Define allowed MIME types and extensions
+    ALLOWED_MIMES = {
+        'image/jpeg': ['.jpg', '.jpeg'],
+        'image/png': ['.png'],
+        'image/gif': ['.gif'],
+        'application/pdf': ['.pdf'],
+        'application/msword': ['.doc'],
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+        'application/zip': ['.zip'],
+        'application/x-rar-compressed': ['.rar'],
+        'application/octet-stream': ['.zip', '.rar']  # Some browsers send this for zip/rar files
+    }
+    
+    # Get file extension
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    
+    # Check if extension is allowed
+    allowed = False
+    for mime_type, extensions in ALLOWED_MIMES.items():
+        if file_ext in extensions:
+            allowed = True
+            break
+    
+    if not allowed:
+        return jsonify({'error': 'Invalid file type. Allowed types: Images (JPG, PNG, GIF), Documents (PDF, DOC, DOCX), Archives (ZIP, RAR)'}), 400
+        
+    try:
+        filename = secure_filename(file.filename)
+        # Generate unique filename
+        unique_filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{filename}"
+        
+        # Ensure upload directory exists
+        upload_dir = current_app.config['UPLOAD_FOLDER']
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Save file
+        file_path = os.path.join(upload_dir, unique_filename)
+        file.save(file_path)
+        
+        # Generate URL for the file
+        file_url = url_for('static', filename=f'uploads/chat/{unique_filename}')
+        
+        return jsonify({
+            'success': True,
+            'file_url': file_url,
+            'file_name': filename
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

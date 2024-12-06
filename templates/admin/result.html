@@ -1,37 +1,278 @@
 {% extends 'layout.html' %}
 
-{% block title %}Admin{% endblock %}
+{% block title %}Quiz Results Overview{% endblock %}
 
 {% block body %}
-  <h1 class="text-center">
-    Results
-  </h1>
-  <table class="table">
-  <thead>
-    <tr>
-      <th scope="col">ID</th>
-      <th scope="col">Name</th>
-      <th scope="col">Total Questions</th>
-      <th scope="col">Not Attempt</th>
-      <th scope="col">Correct</th>
-      <th scope="col">Incorrect</th>
-      <th scope="col">Total Marks</th>
-      <th scope="col">Time Taken</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for result in results %}
-    <tr>
-      <th scope="row">{{ result.user.id }}</th>
-      <td>{{ result.user.name }}</td>
-      <td>{{ result.total_number }}</td>
-      <td>{{ result.not_attempt }}</td>
-      <td>{{ result.correct }}</td>
-      <td>{{ result.incorrect }}</td>
-      <td>{{ result.correct }}/{{ result.total_number }}</td>
-      <td>{{ result.time_taken // 60 }}:{{ "%02d"|format(result.time_taken % 60) }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="container">
+    <div class="card bg-dark border-0 shadow-lg mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="text-gradient mb-0">
+                    <i class="fas fa-poll me-3"></i>Quiz Results Overview
+                </h1>
+                <div class="stats-summary">
+                    <span class="badge bg-primary me-2">
+                        <i class="fas fa-users me-1"></i> {{ results|length }} Attempts
+                    </span>
+                    <span class="badge bg-success">
+                        <i class="fas fa-clock me-1"></i> Latest Update: {{ utc_to_gmt7(results[0].created_at).strftime('%Y-%m-%d %H:%M') if results }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle custom-table">
+                    <thead class="bg-gradient-primary text-white">
+                        <tr>
+                            <th scope="col">User Info</th>
+                            <th scope="col" class="text-center">Performance</th>
+                            <th scope="col" class="text-center">Score</th>
+                            <th scope="col" class="text-center">Time</th>
+                            <th scope="col" class="text-center">Completion Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in results|sort(attribute='created_at', reverse=True) %}
+                        <tr class="result-row">
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ result.user.get_avatar_url }}" 
+                                         class="rounded-circle me-3" 
+                                         width="40" height="40"
+                                         alt="User Avatar">
+                                    <div>
+                                        <h6 class="mb-0">{{ result.user.name }}</h6>
+                                        <small class="text-muted">ID: {{ result.user.id }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="performance-badges">
+                                    <span class="badge bg-success" title="Correct Answers">
+                                        <i class="fas fa-check"></i> {{ result.correct }}
+                                    </span>
+                                    <span class="badge bg-danger" title="Incorrect Answers">
+                                        <i class="fas fa-times"></i> {{ result.incorrect }}
+                                    </span>
+                                    <span class="badge bg-secondary" title="Not Attempted">
+                                        <i class="fas fa-minus"></i> {{ result.not_attempt }}
+                                    </span>
+                                </div>
+                                <div class="progress mt-2" style="height: 6px;">
+                                    <div class="progress-bar bg-success" 
+                                         role="progressbar" 
+                                         style="width: {{ (result.correct / result.total_number * 100)|round(1) }}%">
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <span class="score-badge bg-{{ 
+                                    'success' if (result.correct / result.total_number * 100) >= 80 
+                                    else 'info' if (result.correct / result.total_number * 100) >= 60 
+                                    else 'warning' if (result.correct / result.total_number * 100) >= 40 
+                                    else 'danger' 
+                                }}">
+                                    <div class="score-content">
+                                        <div class="score-fraction">
+                                            {{ result.correct }}/{{ result.total_number }}
+                                        </div>
+                                        <div class="score-percentage">
+                                            {{ (result.correct / result.total_number * 100)|round(1) }}%
+                                        </div>
+                                    </div>
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="time-badge">
+                                    <i class="fas fa-stopwatch me-1"></i>
+                                    {{ result.time_taken // 60 }}:{{ "%02d"|format(result.time_taken % 60) }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="date-badge" title="{{ utc_to_gmt7(result.created_at).strftime('%Y-%m-%d %H:%M') }} GMT+7">
+                                    {{ utc_to_gmt7(result.created_at).strftime('%Y-%m-%d %H:%M') }}
+                                    <small class="timezone-indicator"></small>
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+/* Header Styling */
+.text-gradient {
+    background: linear-gradient(45deg, #4e73df, #36b9cc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: bold;
+}
+
+/* Card Styling */
+.card {
+    background: rgba(33, 37, 41, 0.8) !important;
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+}
+
+/* Table Styling */
+.custom-table {
+    margin-bottom: 0;
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(45deg, #4e73df 10%, #224abe 90%);
+}
+
+.result-row {
+    transition: all 0.3s ease;
+}
+
+.result-row:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    transform: translateX(5px);
+}
+
+/* Badge Styling */
+.performance-badges .badge {
+    padding: 0.5em 1em;
+    margin: 0 0.2em;
+    font-size: 0.85rem;
+}
+
+.score-badge {
+    padding: 0.8em 1.2em;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 1rem;
+    display: inline-block;
+    min-width: 120px;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.score-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2em;
+}
+
+.score-fraction {
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+
+.score-percentage {
+    font-size: 0.85rem;
+    font-weight: normal;
+    opacity: 0.9;
+}
+
+.time-badge {
+    background: rgba(54, 185, 204, 0.1);
+    color: #36b9cc;
+    padding: 0.5em 1em;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.date-badge {
+    background: rgba(78, 115, 223, 0.1);
+    color: #4e73df;
+    padding: 0.5em 1em;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    position: relative;
+}
+
+.timezone-indicator {
+    font-size: 0.7rem;
+    opacity: 0.7;
+    margin-left: 0.3em;
+    color: #4e73df;
+}
+
+/* Progress Bar */
+.progress {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    transition: width 1s ease-in-out;
+}
+
+/* Stats Summary */
+.stats-summary .badge {
+    padding: 0.7em 1.2em;
+    font-size: 0.9rem;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.result-row {
+    animation: fadeIn 0.5s ease-out forwards;
+    animation-delay: calc(var(--index) * 0.1s);
+    opacity: 0;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .performance-badges {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .stats-summary {
+        display: none;
+    }
+}
+
+/* Score Badge Colors */
+.score-badge.bg-success {
+    background: linear-gradient(45deg, #1cc88a 10%, #13855c 90%);
+}
+
+.score-badge.bg-info {
+    background: linear-gradient(45deg, #36b9cc 10%, #258391 90%);
+}
+
+.score-badge.bg-warning {
+    background: linear-gradient(45deg, #f6c23e 10%, #dda20a 90%);
+}
+
+.score-badge.bg-danger {
+    background: linear-gradient(45deg, #e74a3b 10%, #be2617 90%);
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set animation delay for each row
+    document.querySelectorAll('.result-row').forEach((row, index) => {
+        row.style.setProperty('--index', index + 1);
+    });
+});
+</script>
 {% endblock %}

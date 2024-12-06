@@ -1,0 +1,76 @@
+<div class="quiz-set-details">
+    <!-- Basic Information -->
+    <div class="section mb-4">
+        <h4>Basic Information</h4>
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Time Limit:</strong> {{ set.time_limit // 60 }}:{{ '%02d'|format(set.time_limit % 60) }}</p>
+                <p><strong>Created:</strong> {{ set.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Total Questions:</strong> {{ questions|length }}</p>
+                <p><strong>Assigned Users:</strong> {{ users.count() }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Questions List -->
+    <div class="section mb-4">
+        <h4>Questions</h4>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Question</th>
+                        <th>Category</th>
+                        <th>Difficulty</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for question in questions %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ question.question }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ question.category.name if question.category else 'N/A' }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if question.difficulty == 'easy' else 'warning' if question.difficulty == 'medium' else 'danger' }}">
+                                {{ question.difficulty }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Assigned Users -->
+    <div class="section">
+        <h4>Assigned Users</h4>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Assigned Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ user.full_name or user.name }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.date_joined.strftime('%Y-%m-%d') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div> 
