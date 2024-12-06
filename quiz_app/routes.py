@@ -3182,7 +3182,7 @@ def handle_error(error):
 
 @main.route("/chat/message/<int:message_id>/edit", methods=['POST'])
 @login_required
-def edit_message(message_id):
+def edit_chat_message(message_id):
     try:
         message = ChatMessage.query.get_or_404(message_id)
         
@@ -3198,12 +3198,13 @@ def edit_message(message_id):
             
         message.content = new_content
         message.edited_at = datetime.utcnow()
+        message.edited = True
         db.session.commit()
         
         socketio.emit('message_edited', {
             'message_id': message_id,
             'content': new_content,
-            'edited_at': utc_to_gmt7(message.edited_at).strftime('%H:%M')
+            'edited_at': message.edited_at.strftime('%H:%M')
         }, room=str(message.room_id))
         
         return jsonify({'success': True})
@@ -3265,9 +3266,10 @@ def upload_file():
         return jsonify({'error': 'No selected file'}), 400
         
     # Check file size (100MB limit)
-    if len(file.read()) > 100 * 1024 * 1024:  # 100MB in bytes
+    file_size = len(file.read())
+    file.seek(0)  # Reset file pointer after reading
+    if file_size > 100 * 1024 * 1024:  # 100MB in bytes
         return jsonify({'error': 'File size must be under 100MB'}), 400
-    file.seek(0)  # Reset file pointer
     
     # Define allowed MIME types and extensions
     ALLOWED_MIMES = {

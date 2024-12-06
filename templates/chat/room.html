@@ -1352,7 +1352,7 @@ html, body {
                                     <button class="emoji-option" data-emoji="😎">😍</button>
                                     <button class="emoji-option" data-emoji="🤩">🤩</button>
                                     <button class="emoji-option" data-emoji="😘">😘</button>
-                                    <button class="emoji-option" data-emoji="💕">💕</button>
+                                    <button class="emoji-option" data-emoji="💕">���</button>
                                     <button class="emoji-option" data-emoji="💖">💖</button>
                                     <button class="emoji-option" data-emoji="😎">😎</button>
                                     <button class="emoji-option" data-emoji="🤠">🤠</button>
@@ -1594,7 +1594,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="reactions-group">
                         <div class="quick-reactions">
                             <button class="btn-icon reaction-btn" data-emoji="👍" data-message-id="${data.id}" title="Like">👍</button>
-                            <button class="btn-icon reaction-btn" data-emoji="️" data-message-id="${data.id}" title="Heart">❤️</button>
+                            <button class="btn-icon reaction-btn" data-emoji="❤️" data-message-id="${data.id}" title="Heart">❤️</button>
                             <button class="btn-icon reaction-btn" data-emoji="😄" data-message-id="${data.id}" title="Smile">😄</button>
                             <button class="btn-icon reaction-btn" data-emoji="" data-message-id="${data.id}" title="Wow">😮</button>
                             <button class="btn-icon reaction-btn" data-emoji="😢" data-message-id="${data.id}" title="Sad">😢</button>
@@ -1634,7 +1634,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <button class="emoji-option" data-emoji="🤪">🤪</button>
                                 <button class="emoji-option" data-emoji="😜">😜</button>
                                 <button class="emoji-option" data-emoji="🤓">🤓</button>
-                                <button class="emoji-option" data-emoji="🥳">🥳</button>
+                                <button class="emoji-option" data-emoji="���">🥳</button>
                                 <button class="emoji-option" data-emoji="🤔">🤔</button>
                                 <button class="emoji-option" data-emoji="🤨">🤨</button>
                                 <button class="emoji-option" data-emoji="😐">😐</button>
@@ -1996,6 +1996,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <button class="btn-icon emoji-button" title="Add Emoji">
                         <i class="far fa-smile"></i>
                     </button>
+                    <span class="edit-hint" style="color: #b9bbbe; font-size: 0.8em; margin-left: 8px;">
+                        Press Enter to save, Shift+Enter for new line
+                    </span>
                 </div>
                 <div class="edit-buttons">
                     <button class="save-edit">Save</button>
@@ -2009,13 +2012,41 @@ document.addEventListener('DOMContentLoaded', function() {
             contentEl.style.display = 'none';
             contentEl.parentNode.insertBefore(editContainer, contentEl);
             
-            // Focus textarea after a short delay to ensure proper initialization
-            setTimeout(() => {
+            // Function to handle save
+            function saveEdit() {
                 const emojioneArea = $(textarea).data('emojioneArea');
-                if (emojioneArea && emojioneArea.editor) {
-                    emojioneArea.editor[0].focus();
+                const newContent = emojioneArea ? emojioneArea.getText().trim() : textarea.value.trim();
+                
+                if (newContent) {
+                    fetch(`/chat/message/${messageId}/edit`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ content: newContent })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            contentEl.textContent = newContent;
+                            if (!headerEl.querySelector('.edited-indicator')) {
+                                headerEl.insertAdjacentHTML('beforeend', 
+                                    '<span class="edited-indicator">(edited)</span>'
+                                );
+                            }
+                            contentEl.style.display = '';
+                            editContainer.remove();
+                            updateMessageTextSize(messageEl);
+                        } else {
+                            alert('Failed to edit message: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Failed to edit message');
+                    });
                 }
-            }, 100);
+            }
 
             // Initialize EmojioneArea
             $(textarea).emojioneArea({
@@ -2030,10 +2061,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 recentEmojis: true,
                 filtersPosition: "bottom",
                 searchPosition: "bottom",
-                button: false
+                button: false,
+                events: {
+                    keydown: function(editor, event) {
+                        if (event.key === 'Enter' && !event.shiftKey) {
+                            event.preventDefault();
+                            saveEdit();
+                        } else if (event.key === 'Escape') {
+                            contentEl.style.display = '';
+                            editContainer.remove();
+                        }
+                    }
+                }
             });
 
-            // Handle save/cancel
+            // Handle save/cancel buttons
             actions.addEventListener('click', function(e) {
                 const target = e.target;
                 
@@ -2056,38 +2098,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 if (target.classList.contains('save-edit')) {
-                    const emojioneArea = $(textarea).data('emojioneArea');
-                    const newContent = emojioneArea ? emojioneArea.getText().trim() : textarea.value.trim();
-                    
-                    if (newContent) {
-                        fetch(`/chat/message/${messageId}/edit`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ content: newContent })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                contentEl.textContent = newContent;
-                                if (!headerEl.querySelector('.edited-indicator')) {
-                                    headerEl.insertAdjacentHTML('beforeend', 
-                                        '<span class="edited-indicator">(edited)</span>'
-                                    );
-                                }
-                                contentEl.style.display = '';
-                                editContainer.remove();
-                                updateMessageTextSize(messageEl);
-                            } else {
-                                alert('Failed to edit message: ' + data.error);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            alert('Failed to edit message');
-                        });
-                    }
+                    saveEdit();
                 }
             });
         }
@@ -2213,4 +2224,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %} 
- 

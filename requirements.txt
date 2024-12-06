@@ -1,32 +1,23 @@
+# Core Flask and Extensions
 Flask==3.0.0
+Flask-SocketIO==5.3.6
 Flask-SQLAlchemy==3.1.1
 Flask-Login==0.6.3
-Flask-Migrate==4.0.5
-Flask-SocketIO==5.3.6
-Flask-Mail==0.9.1
-SQLAlchemy==2.0.23
-alembic==1.12.1
-psycopg2-binary==2.9.9
-python-socketio==5.10.0
+Flask-WTF==1.2.1
+
+# Socket.IO Dependencies
 python-engineio==4.8.0
+python-socketio==5.10.0
 eventlet==0.33.3
+
+# Database and Security
 Werkzeug==3.0.1
-itsdangerous==2.1.2
-python-dotenv==1.0.0
 bcrypt==4.0.1
+
+# File Handling
 Pillow==10.1.0
 python-magic==0.4.27
-pytz==2023.3.post1
-python-dateutil==2.8.2
-click==8.1.7
-Jinja2==3.1.2
-MarkupSafe==2.1.3
-six==1.16.0
-blinker==1.7.0
-pytest==7.4.3
-pytest-flask==1.3.0
-coverage==7.3.2
-dnspython==2.4.2
-gevent==23.9.1
-gevent-websocket==0.10.1
 python-magic-bin==0.4.14; platform_system == "Windows"
+
+# Environment Variables
+python-dotenv==1.0.0

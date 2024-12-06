@@ -4,7 +4,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
 build/
 develop-eggs/
 dist/
@@ -25,89 +24,34 @@ wheels/
 venv/
 ENV/
 .env
-.venv
-env/
-venv/
-ENV/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-*.swn
-.project
-.pydevproject
-.settings/
-*.sublime-workspace
-*.sublime-project
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-*.sqlite-journal
-
-# Logs and debugging
-*.log
-logs/
-debug.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-debug.log
-*.stackdump
-
-# OS generated files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-Desktop.ini
-$RECYCLE.BIN/
+
+# Project specific
+instance/
+static/uploads/*
+!static/uploads/.gitkeep
+migrations/versions/*
+!migrations/versions/.gitkeep
+*.db
+*.sqlite3
+*.log
 
 # Flask
-instance/
-.webassets-cache
 flask_session/
-
-# Local development configuration
-config.py
-.env.local
-.env.*.local
-*.local.py
+.webassets-cache/
 
 # Coverage reports
 htmlcov/
+.tox/
 .coverage
-coverage.xml
 .coverage.*
-.pytest_cache/
+.cache
 nosetests.xml
-coverage/
-
-# Migration files
-migrations/versions/
-migrations/script.py.mako
-migrations/README
-migrations/env.py
-migrations/alembic.ini
-
-# Media and uploads
-uploads/
-media/
-static/uploads/
-user_uploads/
-temp/
-
-# Backup files
-*.bak
-*.tmp
-*.temp
-*~
-*.old
-*.orig
-*.rej
+coverage.xml
+*.cover
