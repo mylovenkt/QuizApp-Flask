@@ -1288,7 +1288,15 @@ html, body {
                     <div class="message-content">
                         <div class="message-header">
                             <span class="message-author">{{ message.user.display_name }}</span>
-                            <span class="message-time">{{ message.created_at.strftime('%H:%M') }}</span>
+                            <span class="message-time">
+                                {% if message.created_at.date() == now.date() %}
+                                    Today at {{ message.created_at|format_datetime('%H:%M') }}
+                                {% elif message.created_at.date() == yesterday.date() %}
+                                    Yesterday at {{ message.created_at|format_datetime('%H:%M') }}
+                                {% else %}
+                                    {{ message.created_at|format_datetime('%d/%m/%y %H:%M') }}
+                                {% endif %}
+                            </span>
                             {% if message.edited_at %}
                                 <span class="edited-indicator">(edited)</span>
                             {% endif %}
@@ -1344,7 +1352,7 @@ html, body {
                                     <button class="emoji-option" data-emoji="😂">😃</button>
                                     <button class="emoji-option" data-emoji="😄">😄</button>
                                     <button class="emoji-option" data-emoji="😁">😁</button>
-                                    <button class="emoji-option" data-emoji="��">😅</button>
+                                    <button class="emoji-option" data-emoji="😅">😅</button>
                                     <button class="emoji-option" data-emoji="😂">😂</button>
                                     <button class="emoji-option" data-emoji="🤣">🤣</button>
                                     <button class="emoji-option" data-emoji="😊">😊</button>
@@ -1508,6 +1516,52 @@ function scrollToBottom(smooth = true) {
     }
 }
 
+// Add this helper function at the top of your script
+function formatMessageTime(timestamp) {
+    // Convert the timestamp to a Date object
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) {
+        console.error('Invalid timestamp:', timestamp);
+        return timestamp; // Return original if invalid
+    }
+    
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    // Reset hours/minutes/seconds for date comparison
+    const dateToCompare = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const nowToCompare = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayToCompare = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+    
+    // Format time
+    const timeStr = date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Bangkok'
+    });
+    
+    // Check if same day
+    if (dateToCompare.getTime() === nowToCompare.getTime()) {
+        return `Today at ${timeStr}`;
+    }
+    
+    // Check if yesterday
+    if (dateToCompare.getTime() === yesterdayToCompare.getTime()) {
+        return `Yesterday at ${timeStr}`;
+    }
+    
+    // Otherwise show full date
+    const dateStr = date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
+        timeZone: 'Asia/Bangkok'
+    });
+    return `${dateStr} ${timeStr}`;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize socket connection
     socket = io();
@@ -1556,14 +1610,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Format the timestamp
-        const timestamp = new Date(data.created_at).toLocaleString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-            timeZone: 'Asia/Bangkok'  // GMT+7
-        });
-
         // Create message HTML with proper escaping
         const messageHtml = `
             <div class="message" data-message-id="${data.id}">
@@ -1575,7 +1621,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="message-content">
                     <div class="message-header">
                         <span class="message-author">${data.user.display_name}</span>
-                        <span class="message-time">${timestamp}</span>
+                        <span class="message-time">${formatMessageTime(data.created_at)}</span>
                         ${data.edited ? '<span class="edited-indicator">(edited)</span>' : ''}
                     </div>
                     <div class="message-text">${data.content}</div>

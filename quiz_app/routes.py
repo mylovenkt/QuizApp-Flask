@@ -1628,12 +1628,17 @@ def chat_room(room_id):
             message.created_at = timezone('UTC').localize(message.created_at)
         message.created_at = message.created_at.astimezone(timezone('Asia/Bangkok'))
 
+    now = datetime.now()
+    yesterday = now - timedelta(days=1)
+    
     return render_template('chat/room.html',
         room=room,
         messages=messages,
         participants=participants,
         online_count=online_count,
-        offline_count=offline_count
+        offline_count=offline_count,
+        now=now,
+        yesterday=yesterday
     )
 
 @main.route("/chat/room/<int:room_id>/delete", methods=['POST'])
