@@ -1269,6 +1269,58 @@ html, body {
     color: #949ba4;
     font-weight: normal;
 }
+
+/* Add these styles to your existing CSS */
+.message-attachment img {
+    max-width: 300px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.message-attachment img:hover {
+    transform: scale(1.02);
+}
+
+.uploaded-image {
+    max-width: 300px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.uploaded-image:hover {
+    transform: scale(1.02);
+}
+
+/* Update image attachment styles */
+.message-attachment {
+    margin-top: 8px;
+}
+
+.message-attachment img {
+    max-width: 300px;
+    border-radius: 4px;
+    display: block;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.message-attachment img:hover {
+    transform: scale(1.02);
+}
+
+.message-attachment .image-container {
+    background-color: #2b2d31;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.message-attachment .file-name {
+    margin-top: 8px;
+    font-size: 0.9em;
+    color: #b9bbbe;
+}
 </style>
 {% endblock %}
 
@@ -1304,8 +1356,16 @@ html, body {
                         <div class="message-text">{{ message.content }}</div>
                         {% if message.file_url %}
                             <div class="message-attachment">
-                                {% if message.file_type and message.file_type.startswith('image/') %}
-                                    <img src="{{ message.file_url }}" alt="{{ message.file_name }}" style="max-width: 300px;" class="zoomable-image">
+                                {% if message.file_url.endswith(('.jpg', '.jpeg', '.png', '.gif')) %}
+                                    <div style="background-color: #2b2d31; padding: 8px; border-radius: 8px;">
+                                        <img src="{{ message.file_url }}" 
+                                             alt="{{ message.file_name }}" 
+                                             style="max-width: 300px; border-radius: 4px; display: block;" 
+                                             class="zoomable-image">
+                                        <div style="margin-top: 8px; font-size: 0.9em; color: #b9bbbe;">
+                                            {{ message.file_name }}
+                                        </div>
+                                    </div>
                                 {% else %}
                                     <a href="{{ message.file_url }}" target="_blank" download>
                                         <i class="fas fa-file"></i> {{ message.file_name }}
@@ -1522,43 +1582,42 @@ function formatMessageTime(timestamp) {
     const date = new Date(timestamp);
     if (isNaN(date.getTime())) {
         console.error('Invalid timestamp:', timestamp);
-        return timestamp; // Return original if invalid
+        return timestamp;
     }
     
+    // Add 7 hours for GMT+7
+    const gmt7Date = new Date(date.getTime() + (7 * 60 * 60 * 1000));
+    
     const now = new Date();
-    const yesterday = new Date(now);
+    const gmt7Now = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+    const yesterday = new Date(gmt7Now);
     yesterday.setDate(yesterday.getDate() - 1);
     
-    // Reset hours/minutes/seconds for date comparison
-    const dateToCompare = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const nowToCompare = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterdayToCompare = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
-    
-    // Format time
-    const timeStr = date.toLocaleTimeString('en-US', { 
+    // Format time in GMT+7
+    const timeStr = gmt7Date.toLocaleTimeString('en-US', { 
         hour: '2-digit', 
         minute: '2-digit',
         hour12: false,
-        timeZone: 'Asia/Bangkok'
+        timeZone: 'UTC'  // Use UTC to avoid browser timezone conversion
     });
     
-    // Check if same day
-    if (dateToCompare.getTime() === nowToCompare.getTime()) {
+    // Check if same day using GMT+7 dates
+    if (gmt7Date.toDateString() === gmt7Now.toDateString()) {
         return `Today at ${timeStr}`;
     }
     
-    // Check if yesterday
-    if (dateToCompare.getTime() === yesterdayToCompare.getTime()) {
+    if (gmt7Date.toDateString() === yesterday.toDateString()) {
         return `Yesterday at ${timeStr}`;
     }
     
-    // Otherwise show full date
-    const dateStr = date.toLocaleDateString('en-GB', {
+    // Otherwise show full date in GMT+7
+    const dateStr = gmt7Date.toLocaleDateString('en-GB', {
         day: '2-digit',
         month: '2-digit',
         year: '2-digit',
-        timeZone: 'Asia/Bangkok'
+        timeZone: 'UTC'  // Use UTC to avoid browser timezone conversion
     });
+    
     return `${dateStr} ${timeStr}`;
 }
 
@@ -1627,12 +1686,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="message-text">${data.content}</div>
                     ${data.file_url ? `
                         <div class="message-attachment">
-                            ${data.file_type && data.file_type.startsWith('image/') ? 
-                                `<img src="${data.file_url}" alt="${data.file_name}" style="max-width: 300px;" class="zoomable-image">` :
-                                `<a href="${data.file_url}" target="_blank" download>
+                            ${data.file_url.match(/\.(jpg|jpeg|png|gif)$/i) ? `
+                                <div style="background-color: #2b2d31; padding: 8px; border-radius: 8px;">
+                                    <img src="${data.file_url}" 
+                                         alt="${data.file_name}" 
+                                         style="max-width: 300px; border-radius: 4px; display: block;" 
+                                         class="zoomable-image">
+                                    <div style="margin-top: 8px; font-size: 0.9em; color: #b9bbbe;">
+                                        ${data.file_name}
+                                    </div>
+                                </div>
+                            ` : `
+                                <a href="${data.file_url}" target="_blank" download>
                                     <i class="fas fa-file"></i> ${data.file_name}
-                                </a>`
-                            }
+                                </a>
+                            `}
                         </div>
                     ` : ''}
                     <div class="message-reactions"></div>

@@ -107,8 +107,12 @@ def format_time(timestamp):
     
     # Convert to GMT+7
     gmt7 = pytz.timezone('Asia/Bangkok')
+    
+    # Ensure timestamp is timezone-aware
     if timestamp.tzinfo is None:
         timestamp = pytz.UTC.localize(timestamp)
+    
+    # Convert to GMT+7
     local_time = timestamp.astimezone(gmt7)
     
     # Get current time in GMT+7
@@ -116,21 +120,31 @@ def format_time(timestamp):
     
     # If same day, show only time
     if local_time.date() == now.date():
-        return local_time.strftime('%H:%M')
+        return f"Today at {local_time.strftime('%H:%M')} GMT+7"
     
     # If within a week, show day and time
     delta = now.date() - local_time.date()
     if delta.days < 7:
-        return local_time.strftime('%A %H:%M')
+        return f"{local_time.strftime('%A')} at {local_time.strftime('%H:%M')} GMT+7"
     
     # Otherwise show full date
-    return local_time.strftime('%Y-%m-%d %H:%M')
+    return f"{local_time.strftime('%d/%m/%y %H:%M')} GMT+7"
 
 @main.app_template_filter('format_datetime')
 def format_datetime(value, format='%H:%M'):
     if value is None:
         return ""
-    return value.astimezone(timezone('Asia/Bangkok')).strftime(format)
+    
+    # Ensure value is timezone-aware
+    if value.tzinfo is None:
+        value = pytz.UTC.localize(value)
+        
+    # Convert to GMT+7
+    gmt7 = pytz.timezone('Asia/Bangkok')
+    local_time = value.astimezone(gmt7)
+    
+    # Return just the time without GMT+7
+    return local_time.strftime(format)
 
 def admin_required(f):
     @wraps(f)
@@ -1935,21 +1949,18 @@ def handle_message(data):
         room = data.get('room')
         file_url = data.get('file_url')
         file_name = data.get('file_name')
-        file_type = data.get('file_type')
         
         if not room or (not message_text and not file_url):
             return
             
-        # Create message with GMT+7 timestamp
-        bangkok_tz = timezone('Asia/Bangkok')
+        # Store in UTC
         created_at = datetime.utcnow()
-        created_at = timezone('UTC').localize(created_at).astimezone(bangkok_tz)
+        created_at = pytz.UTC.localize(created_at)
             
         chat_message = ChatMessage(
             content=message_text,
             file_url=file_url,
             file_name=file_name,
-            file_type=file_type,
             user_id=current_user.id,
             room_id=room,
             created_at=created_at
@@ -1958,22 +1969,19 @@ def handle_message(data):
         db.session.add(chat_message)
         db.session.commit()
         
-        # Prepare user data
-        user_data = {
-            'id': current_user.id,
-            'display_name': current_user.display_name,
-            'avatar_url': current_user.get_avatar_url,
-            'is_online': current_user.is_online
-        }
-        
+        # Send UTC time to client
         emit('new_message', {
             'id': chat_message.id,
             'content': chat_message.content,
             'file_url': chat_message.file_url,
             'file_name': chat_message.file_name,
-            'file_type': chat_message.file_type,
-            'created_at': chat_message.created_at.isoformat(),
-            'user': user_data,
+            'created_at': created_at.isoformat(),  # Send UTC time
+            'user': {
+                'id': current_user.id,
+                'display_name': current_user.display_name,
+                'avatar_url': current_user.get_avatar_url,
+                'is_online': current_user.is_online
+            },
             'edited': False
         }, room=room)
         
@@ -2220,7 +2228,7 @@ def create_rich_text_question():
             return jsonify({
                 "success": False,
                 "error": str(e)
-            })  # Closed parenthesis here
+            })
     
     return render_template(
         "admin/rich_text_editor.html",
@@ -3308,14 +3316,17 @@ def upload_file():
         'application/octet-stream': ['.zip', '.rar']  # Some browsers send this for zip/rar files
     }
     
-    # Get file extension
+    # Get file extension and mime type
     file_ext = os.path.splitext(file.filename)[1].lower()
+    mime_type = file.content_type
     
     # Check if extension is allowed
     allowed = False
-    for mime_type, extensions in ALLOWED_MIMES.items():
+    is_image = False
+    for mime, extensions in ALLOWED_MIMES.items():
         if file_ext in extensions:
             allowed = True
+            is_image = mime.startswith('image/')
             break
     
     if not allowed:
@@ -3340,7 +3351,8 @@ def upload_file():
         return jsonify({
             'success': True,
             'file_url': file_url,
-            'file_name': filename
+            'file_name': filename,
+            'is_image': is_image  # Add this flag to indicate if it's an image
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
